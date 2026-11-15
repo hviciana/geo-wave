@@ -1,0 +1,341 @@
+import React from 'react';
+import { Activity, Calendar, ChevronLeft, ChevronRight, Columns2, Eye, Film, Pause, Play, Repeat, Sigma, SkipBack } from 'lucide-react';
+import { getTemporalObservationStatus } from '../utils/sarMath';
+
+export default function TimelineControl({
+  dataset,
+  tFloat,
+  setTFloat,
+  isPlaying,
+  setIsPlaying,
+  onTogglePlay,
+  onManualSeek,
+  isLooping,
+  setIsLooping,
+  playbackSpeed,
+  setPlaybackSpeed,
+  discreteOnly = false,
+  setDiscreteOnly,
+  renderMode = 'hybrid',
+  setRenderMode,
+  opticalMode,
+  setOpticalMode,
+  compareMode,
+  setCompareMode,
+  splitX,
+  setSplitX,
+  buffers,
+}) {
+  const effectiveRenderMode = renderMode || (opticalMode ? 'optical' : 'hybrid');
+  const selectRenderMode = (mode) => {
+    if (typeof setRenderMode === 'function') {
+      setRenderMode(mode);
+    } else if (typeof setOpticalMode === 'function') {
+      setOpticalMode(mode === 'optical');
+    }
+  };
+  const timeline = dataset?.timeline || [];
+  const maxIdx = Math.max(0, timeline.length - 1);
+  const safeT = Number.isFinite(Number(tFloat)) ? Math.max(0, Math.min(maxIdx, Number(tFloat))) : 0;
+  const status = getTemporalObservationStatus(timeline, safeT, buffers?.confianza);
+
+  const handleSeek = (val) => {
+    const num = Number(val);
+    let clamped = Number.isFinite(num) ? Math.max(0, Math.min(maxIdx, num)) : 0;
+    if (discreteOnly) clamped = Math.round(clamped);
+    if (typeof onManualSeek === 'function') {
+      onManualSeek(clamped);
+    } else {
+      setIsPlaying?.(false);
+      setTFloat?.(clamped);
+    }
+  };
+
+  const handlePlayToggle = () => {
+    if (typeof onTogglePlay === 'function') {
+      onTogglePlay();
+    } else if (typeof setIsPlaying === 'function') {
+      if (!isPlaying && safeT >= maxIdx - 0.02) {
+        setTFloat?.(0);
+      }
+      setIsPlaying((p) => !p);
+    }
+  };
+
+  const stepPrev = () => {
+    const target = Math.max(0, Math.ceil(safeT) - 1);
+    handleSeek(target);
+  };
+  const stepNext = () => {
+    const target = Math.min(maxIdx, Math.floor(safeT) + 1);
+    handleSeek(target);
+  };
+
+  return (
+    <div className="bg-zinc-900/95 backdrop-blur-xl border-t border-zinc-800 px-4 py-3 flex flex-col gap-2.5 shrink-0">
+      {/* Fila superior: Transporte, velocidad, estado de pasada y toggles */}
+      <div className="flex flex-wrap items-center justify-between gap-2.5">
+        <div className="flex flex-wrap items-center gap-1.5">
+          <button
+            onClick={handlePlayToggle}
+            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-zinc-100 hover:bg-white text-zinc-950 font-semibold text-xs transition-colors shadow-sm"
+          >
+            {isPlaying ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5" />}
+            {isPlaying ? 'Pausar' : 'Reproducir'}
+          </button>
+
+          <button
+            onClick={() => handleSeek(0)}
+            title="Volver al inicio (T0)"
+            className="p-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-zinc-200 transition-colors"
+          >
+            <SkipBack className="w-3.5 h-3.5" />
+          </button>
+
+          <button
+            onClick={stepPrev}
+            title="Adquisición anterior"
+            className="p-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-zinc-200 transition-colors"
+          >
+            <ChevronLeft className="w-3.5 h-3.5" />
+          </button>
+
+          <button
+            onClick={stepNext}
+            title="Siguiente adquisición"
+            className="p-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-zinc-200 transition-colors"
+          >
+            <ChevronRight className="w-3.5 h-3.5" />
+          </button>
+
+          <button
+            onClick={() => setIsLooping((l) => !l)}
+            title="Bucle continuo"
+            className={`inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border text-xs transition-colors ${
+              isLooping
+                ? 'bg-zinc-100 border-zinc-100 text-zinc-950 font-semibold'
+                : 'bg-zinc-800 hover:bg-zinc-700 border-zinc-700 text-zinc-200 font-medium'
+            }`}
+          >
+            <Repeat className="w-3.5 h-3.5" />
+            Loop
+          </button>
+
+          {/* Selector de velocidad */}
+          <div className="flex items-center bg-zinc-950 border border-zinc-800 rounded-lg p-0.5 text-[11px] font-mono tabular-nums">
+            {[0.5, 1, 2].map((sp) => (
+              <button
+                key={sp}
+                onClick={() => setPlaybackSpeed?.(sp)}
+                className={`px-2 py-1 rounded-md transition-colors ${
+                  playbackSpeed === sp ? 'bg-zinc-100 text-zinc-950 font-semibold' : 'text-zinc-400 hover:text-zinc-100'
+                }`}
+              >
+                {sp}×
+              </button>
+            ))}
+          </div>
+
+          <div className="hidden xl:flex items-center gap-1 ml-1.5 pl-2.5 border-l border-zinc-800">
+            <button
+              onClick={() => handleSeek(0)}
+              className={`px-2.5 py-1 rounded-md text-[11px] border transition-colors ${
+                safeT < 0.25
+                  ? 'bg-zinc-700 border-zinc-500 text-zinc-100 font-medium'
+                  : 'bg-zinc-800 border-zinc-700 text-zinc-300 hover:text-white'
+              }`}
+            >
+              Pre-evento
+            </button>
+            <button
+              onClick={() => handleSeek(Math.min(maxIdx, Math.max(1, Math.floor(maxIdx / 2))))}
+              className={`px-2.5 py-1 rounded-md text-[11px] border transition-colors ${
+                safeT >= 0.6 && safeT <= maxIdx - 0.6
+                  ? 'bg-zinc-700 border-zinc-500 text-zinc-100 font-medium'
+                  : 'bg-zinc-800 border-zinc-700 text-zinc-300 hover:text-white'
+              }`}
+            >
+              Durante el evento
+            </button>
+            <button
+              onClick={() => handleSeek(maxIdx)}
+              className={`px-2.5 py-1 rounded-md text-[11px] border transition-colors ${
+                safeT > maxIdx - 0.25
+                  ? 'bg-zinc-700 border-zinc-500 text-zinc-100 font-medium'
+                  : 'bg-zinc-800 border-zinc-700 text-zinc-300 hover:text-white'
+              }`}
+            >
+              Post-evento
+            </button>
+          </div>
+        </div>
+
+        {/* Estado de adquisición satelital + modo pasadas reales (ancho estable sin saltos de línea) */}
+        <div className="flex items-center gap-2 shrink-0">
+          <div
+            className={`flex items-center justify-center gap-2 px-3 py-1 rounded-full border text-xs font-mono tabular-nums whitespace-nowrap min-w-[238px] ${
+              status.isReal
+                ? 'bg-emerald-950/60 border-emerald-500/40 text-emerald-200'
+                : 'bg-amber-950/50 border-amber-500/40 text-amber-200'
+            }`}
+          >
+            <span
+              className={`w-2 h-2 rounded-full shrink-0 ${
+                status.isReal ? 'bg-emerald-400' : 'bg-amber-400'
+              }`}
+            />
+            <span className="truncate">
+              {status.isReal
+                ? `Dato observado · ${status.nearestFrame?.fecha}`
+                : `Interpolado (${status.confidencePct}%) · ${status.interpolatedDate}`}
+            </span>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => {
+              const next = !discreteOnly;
+              setDiscreteOnly?.(next);
+              if (next) {
+                setTFloat?.(Math.round(safeT));
+              }
+            }}
+            title="Salta exclusivamente entre pasadas satelitales reales observadas (sin interpolación visual intermedia)"
+            className={`px-2.5 py-1 rounded-lg border text-[11px] font-medium transition-colors ${
+              discreteOnly
+                ? 'bg-emerald-400/20 border-emerald-400/70 text-emerald-200'
+                : 'bg-zinc-900 border-zinc-700 text-zinc-300 hover:border-zinc-500 hover:text-white'
+            }`}
+          >
+            Solo pasadas reales
+          </button>
+        </div>
+
+        {/* Controles Visuales y Comparador */}
+        <div className="flex items-center gap-2">
+          <div className="flex items-center bg-zinc-950 border border-zinc-800 rounded-lg p-0.5 text-[11px]">
+            <button
+              onClick={() => selectRenderMode('hybrid')}
+              className={`inline-flex items-center gap-1 px-2 py-1 rounded-md transition-colors ${
+                effectiveRenderMode === 'hybrid'
+                  ? 'bg-zinc-100 text-zinc-950 font-semibold'
+                  : 'text-zinc-400 hover:text-zinc-100'
+              }`}
+            >
+              <Film className="w-3 h-3" />
+              Fusión 3D
+            </button>
+            <button
+              onClick={() => selectRenderMode('optical')}
+              className={`inline-flex items-center gap-1 px-2 py-1 rounded-md transition-colors ${
+                effectiveRenderMode === 'optical'
+                  ? 'bg-zinc-100 text-zinc-950 font-semibold'
+                  : 'text-zinc-400 hover:text-zinc-100'
+              }`}
+            >
+              <Eye className="w-3 h-3" />
+              Satelital HD
+            </button>
+            <button
+              onClick={() => selectRenderMode('driver')}
+              className={`inline-flex items-center gap-1 px-2 py-1 rounded-md transition-colors ${
+                effectiveRenderMode === 'driver'
+                  ? 'bg-zinc-100 text-zinc-950 font-semibold'
+                  : 'text-zinc-400 hover:text-zinc-100'
+              }`}
+            >
+              <Activity className="w-3 h-3" />
+              Var. Cruzada
+            </button>
+            <button
+              onClick={() => selectRenderMode('significance')}
+              className={`inline-flex items-center gap-1 px-2 py-1 rounded-md transition-colors ${
+                effectiveRenderMode === 'significance'
+                  ? 'bg-zinc-100 text-zinc-950 font-semibold'
+                  : 'text-zinc-400 hover:text-zinc-100'
+              }`}
+            >
+              <Sigma className="w-3 h-3" />
+              p&lt;0.05
+            </button>
+          </div>
+
+          <button
+            onClick={() => setCompareMode((v) => !v)}
+            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs transition-colors ${
+              compareMode
+                ? 'bg-zinc-100 border-zinc-100 text-zinc-950 font-semibold'
+                : 'bg-zinc-800 hover:bg-zinc-700 border-zinc-700 text-zinc-200 font-medium'
+            }`}
+          >
+            <Columns2 className={`w-3.5 h-3.5 ${compareMode ? 'text-zinc-950' : 'text-zinc-300'}`} />
+            Antes/Después
+          </button>
+        </div>
+      </div>
+
+      {/* Slider continuo Eje T + marcadores */}
+      <div className="flex flex-col gap-1.5">
+        <div className="flex items-center gap-3">
+          <span className="inline-flex items-center gap-1.5 text-[11px] font-mono text-zinc-400 shrink-0">
+            <Calendar className="w-3.5 h-3.5 text-zinc-400" />
+            EJE T
+          </span>
+          <input
+            type="range"
+            min={0}
+            max={maxIdx}
+            step={discreteOnly ? 1 : 0.01}
+            value={safeT}
+            onChange={(e) => handleSeek(parseFloat(e.target.value))}
+            className="w-full h-2 cursor-pointer"
+          />
+          <span className="text-xs font-mono tabular-nums text-zinc-200 w-24 text-right shrink-0">
+            {status.interpolatedDate}
+          </span>
+        </div>
+
+        <div className="flex justify-between text-[11px] font-mono tabular-nums text-zinc-400 px-12 gap-2 overflow-x-auto">
+          {timeline.map((step, idx) => (
+            <button
+              key={step.fecha}
+              onClick={() => handleSeek(idx)}
+              className={`whitespace-nowrap transition-colors ${
+                Math.abs(safeT - idx) < 0.22
+                  ? 'text-zinc-100 font-semibold underline underline-offset-4 decoration-zinc-400'
+                  : 'hover:text-zinc-200'
+              }`}
+            >
+              {step.fecha} · {step.etiqueta}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Descripción de fase + cortinilla si está activo */}
+      <div className="flex items-center justify-between gap-2 pt-2 border-t border-zinc-800 text-xs min-h-[28px]">
+        <div className="text-zinc-300 flex items-center gap-2 min-w-0">
+          <span className="font-mono text-[11px] px-2 py-0.5 rounded bg-zinc-800 border border-zinc-700 text-zinc-100 shrink-0">
+            {status.nearestFrame?.etiqueta}
+          </span>
+          <span className="truncate">{status.nearestFrame?.descripcion}</span>
+        </div>
+        {compareMode && (
+          <div className="flex items-center gap-2 text-[11px] font-mono tabular-nums text-zinc-300">
+            <span>Divisor Antes | Actual</span>
+            <input
+              type="range"
+              min={0.05}
+              max={0.95}
+              step={0.01}
+              value={splitX}
+              onChange={(e) => setSplitX(parseFloat(e.target.value))}
+              className="w-28 h-1.5 cursor-pointer"
+            />
+            <span>{Math.round(splitX * 100)}%</span>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}

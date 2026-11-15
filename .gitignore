@@ -37,3 +37,11 @@ Thumbs.db
 *.swp
 *.swo
 
+# Rasters satelitales pesados en bruto y caché local de descarga (no subir a GitHub)
+raw_data/**/*.tif
+raw_data/**/*.tiff
+raw_data/**/*.h5
+raw_data/**/*.zip
+raw_data/cache/
+raw_data/live_cache/
+
