@@ -4,8 +4,8 @@ Backend ligero multi-usuario para Visor Geoespacial 3D y Detective de Tendencias
 Reutiliza los extractores reales de build_datasets.py añadiendo:
   1. Rate limiting separado por proveedor (Token Bucket / intervalo mínimo).
   2. Deduplicación single-flight + caché compartida en disco (~0.1°).
-  3. Respaldo automático Open-Meteo ante congestión de NASA POWER.
-  4. Texturas temporales evolutivas por keyframe (T0..T3) combinando ArcGIS + NASA GIBS.
+  3. Respaldo automático Open-Meteo ante congestión de MERRA-2 / GPM.
+  4. Texturas temporales evolutivas por keyframe (T0..T3) combinando ArcGIS + GIBS.
 """
 
 from __future__ import annotations
@@ -95,7 +95,7 @@ def choose_optimal_zoom(bbox: list[float], min_z: int, max_z: int, max_tiles: in
 
 
 def fetch_open_meteo_daily(lat: float, lon: float, start_iso: str, end_iso: str) -> dict | None:
-    """Respaldo rápido sin token si NASA POWER está congestionado."""
+    """Respaldo rápido sin token si MERRA-2 / GPM está congestionado."""
     RATE_LIMITER.wait("open_meteo")
     url = (
         "https://archive-api.open-meteo.com/v1/archive?"
@@ -109,7 +109,7 @@ def fetch_open_meteo_daily(lat: float, lon: float, start_iso: str, end_iso: str)
         })
     )
     try:
-        req = urllib.request.Request(url, headers={"User-Agent": "NASA-SpaceApps-TrendDetective/1.0"})
+        req = urllib.request.Request(url, headers={"User-Agent": "EarthTrendDetective-TrendDetective/1.0"})
         with urllib.request.urlopen(req, timeout=12) as resp:
             data = json.loads(resp.read().decode("utf-8"))
         daily = data.get("daily", {})
@@ -135,6 +135,69 @@ def fetch_open_meteo_daily(lat: float, lon: float, start_iso: str, end_iso: str)
                 "ALLSKY_SFC_SW_DWN": [round(4.0 + 0.08 * max(0.0, t), 2) for t in t2m],
             },
         }
+    except Exception:
+        return None
+
+
+def fetch_open_meteo_air_quality(lat: float, lon: float, start_iso: str, end_iso: str, cache_key: str) -> dict | None:
+    """Series diarias reales de ozono (O3), NO2 y PM2.5 (Copernicus CAMS, equivalente abierto a OMI/AIRS)."""
+    cache_file = LIVE_CACHE_DIR / cache_key
+    if cache_file.exists():
+        try:
+            return json.loads(cache_file.read_text(encoding="utf-8"))
+        except Exception:
+            pass
+    RATE_LIMITER.wait("open_meteo")
+    url = (
+        "https://air-quality-api.open-meteo.com/v1/air-quality?"
+        + urllib.parse.urlencode({
+            "latitude": f"{lat:.4f}",
+            "longitude": f"{lon:.4f}",
+            "start_date": start_iso,
+            "end_date": end_iso,
+            "hourly": "ozone,nitrogen_dioxide,pm2_5",
+            "timezone": "UTC",
+        })
+    )
+    try:
+        req = urllib.request.Request(url, headers={"User-Agent": "EarthTrendDetective-TrendDetective/1.0"})
+        with urllib.request.urlopen(req, timeout=12) as resp:
+            data = json.loads(resp.read().decode("utf-8"))
+        hourly = data.get("hourly", {})
+        times = hourly.get("time", [])
+        if not times:
+            return None
+        by_day: dict[str, dict[str, list[float]]] = {}
+        for idx, ts in enumerate(times):
+            day = ts[:10]
+            bucket = by_day.setdefault(day, {"CAMS_O3": [], "CAMS_NO2": [], "CAMS_PM25": []})
+            o3 = hourly.get("ozone", [])[idx] if idx < len(hourly.get("ozone", [])) else None
+            no2 = hourly.get("nitrogen_dioxide", [])[idx] if idx < len(hourly.get("nitrogen_dioxide", [])) else None
+            pm25 = hourly.get("pm2_5", [])[idx] if idx < len(hourly.get("pm2_5", [])) else None
+            if o3 is not None:
+                bucket["CAMS_O3"].append(float(o3))
+            if no2 is not None:
+                bucket["CAMS_NO2"].append(float(no2))
+            if pm25 is not None:
+                bucket["CAMS_PM25"].append(float(pm25))
+        dates = sorted(by_day.keys())
+        if not dates:
+            return None
+        out = {
+            "source": "Copernicus CAMS · Open-Meteo (equiv. OMI / AIRS)",
+            "resolution": "~11–40 km",
+            "start": dates[0],
+            "end": dates[-1],
+            "count": len(dates),
+            "dates": dates,
+            "variables": {
+                "CAMS_O3": [round(sum(by_day[d]["CAMS_O3"]) / max(1, len(by_day[d]["CAMS_O3"])), 2) for d in dates],
+                "CAMS_NO2": [round(sum(by_day[d]["CAMS_NO2"]) / max(1, len(by_day[d]["CAMS_NO2"])), 2) for d in dates],
+                "CAMS_PM25": [round(sum(by_day[d]["CAMS_PM25"]) / max(1, len(by_day[d]["CAMS_PM25"])), 2) for d in dates],
+            },
+        }
+        cache_file.write_text(json.dumps(out, ensure_ascii=False), encoding="utf-8")
+        return out
     except Exception:
         return None
 
@@ -224,7 +287,7 @@ def analyze_zone(payload: dict) -> tuple[int, dict]:
         z_dem = choose_optimal_zoom(bbox, min_z=10, max_z=14, max_tiles=16)
         z_sat = choose_optimal_zoom(bbox, min_z=11, max_z=16, max_tiles=20)
 
-        # 4 fechas distribuidas en el rango para pasadas temporales reales NASA GIBS
+        # 4 fechas distribuidas en el rango para pasadas temporales reales GIBS
         d0 = datetime.fromisoformat(start_iso).date()
         d3 = datetime.fromisoformat(end_iso).date()
         span_days = max(3, (d3 - d0).days)
@@ -257,34 +320,41 @@ def analyze_zone(payload: dict) -> tuple[int, dict]:
                         return g
                 raise
 
+        def _fetch_aq():
+            return fetch_open_meteo_air_quality(c_lat, c_lon, start_iso, end_iso, f"live_aq_{cache_id}.json")
+
         with ThreadPoolExecutor(max_workers=6) as ex:
             fut_dem = ex.submit(fetch_real_dem, bbox, z_dem, GRID_SIZE)
             fut_sat = ex.submit(_fetch_sat_with_fallback)
             fut_power = ex.submit(_fetch_power)
             fut_usgs = ex.submit(_fetch_usgs)
-            fut_gibs = [ex.submit(fetch_nasa_gibs_rgb, bbox, gd, 9, 512) for gd in key_dates]
+            fut_aq = ex.submit(_fetch_aq)
 
             elev_m, elev_norm, elev_range_m = fut_dem.result()
             base_rgb = fut_sat.result()
             power_series = fut_power.result()
             usgs_series = fut_usgs.result()
-            gibs_frames = [f.result() for f in fut_gibs]
+            aq_series = fut_aq.result()
+            gibs_frames = [None] * 4
 
         topo_w = compute_topographic_weights(elev_m, topic)
         cover = np.where(elev_m <= 1.0, 0, np.where(elev_norm < 0.35, 2, 1))
 
-        # Extraer 4 intensidades físicas reales de la serie NASA POWER / USGS
+        # Extraer 4 intensidades físicas reales de la serie MERRA-2 / GPM / USGS
         n_dates = len(power_series["dates"]) if power_series else 0
         if topic == "hydrology":
             arr = power_series["variables"]["PRECTOTCORR"] if n_dates else [2.0, 28.0, 45.0, 12.0]
-            arr_max = max(5.0, max(arr))
-            key_norms = [min(1.0, arr[int(round((len(arr) - 1) * f))] / arr_max) for f in (0.0, 0.35, 0.70, 1.0)]
+            if n_dates and max(arr) < 2.0:
+                key_norms = [0.0, 0.0, 0.0, 0.0]
+            else:
+                arr_max = max(5.0, max(arr))
+                key_norms = [min(1.0, arr[int(round((len(arr) - 1) * f))] / arr_max) for f in (0.0, 0.35, 0.70, 1.0)]
             phenom_key = "flood"
             unit = "mm/día (Lluvia GPM/MERRA-2)"
             factor = 35.0
             primary_var = "PRECTOTCORR"
             secondary_var = "GWETTOP"
-            sensor_label = "NASA POWER (GPM / MERRA-2) + MODIS GIBS + MDE Terrarium"
+            sensor_label = "GPM / MERRA-2 + MODIS GIBS + MDE Terrarium"
         elif topic == "seismic":
             mws = usgs_series.get("max_mw", []) if usgs_series else []
             key_norms = [0.05] * 4 if not mws else [min(1.0, max(0.08, (mws[min(len(mws) - 1, int(round((len(mws) - 1) * f)))] - 3.5) / 4.5)) for f in (0.0, 0.35, 0.70, 1.0)]
@@ -293,7 +363,7 @@ def analyze_zone(payload: dict) -> tuple[int, dict]:
             factor = 25.0
             primary_var = "USGS_MAX_MW"
             secondary_var = "T2M"
-            sensor_label = "USGS Earthquake Hazards + NASA POWER + MDE Terrarium"
+            sensor_label = "USGS Earthquake Hazards + MERRA-2 / GPM + MDE Terrarium"
         else:
             t_arr = power_series["variables"]["T2M"] if n_dates else [18.0, 22.0, 26.0, 24.0]
             t_base = min(t_arr)
@@ -304,7 +374,7 @@ def analyze_zone(payload: dict) -> tuple[int, dict]:
             factor = -6.0
             primary_var = "T2M"
             secondary_var = "GWETTOP"
-            sensor_label = "NASA POWER (MERRA-2 / CERES) + MODIS GIBS + MDE Terrarium"
+            sensor_label = "MERRA-2 / CERES + MODIS GIBS + MDE Terrarium"
 
         base_tex_url = save_live_jpg(base_rgb, f"live_{cache_id}_base.jpg", size=1280, quality=87)
         timeline = []
@@ -312,7 +382,10 @@ def analyze_zone(payload: dict) -> tuple[int, dict]:
         labels = ["Inicio ventana", "Pasada T₁", "Pasada T₂", "Cierre ventana"]
 
         for i, (gdate, norm_v) in enumerate(zip(key_dates, key_norms)):
-            sig = np.clip(topo_w * (0.15 + 0.85 * norm_v), 0.0, 1.0)
+            if topic == "hydrology" and norm_v <= 0.02:
+                sig = np.zeros_like(topo_w)
+            else:
+                sig = np.clip(topo_w * (0.15 + 0.85 * norm_v), 0.0, 1.0)
             def_z = -sig if topic == "thermal" else sig
             conf = np.where(elev_m > 1.0, 0.88, 0.0)
             opt_rgb = compose_highres_timelapse_frame(
@@ -324,9 +397,9 @@ def analyze_zone(payload: dict) -> tuple[int, dict]:
                 phenomenon=phenom_key,
                 step_idx=i,
                 gibs_rgb=gibs_frames[i],
-                out_size=1024,
+                out_size=768,
             )
-            tex_url = save_live_jpg(opt_rgb, f"live_{cache_id}_t{i}.jpg", size=1024, quality=85)
+            tex_url = save_live_jpg(opt_rgb, f"live_{cache_id}_t{i}.jpg", size=768, quality=85)
             prev_sig = np.maximum(prev_sig, sig)
             timeline.append({
                 "fecha": gdate,
@@ -355,9 +428,9 @@ def analyze_zone(payload: dict) -> tuple[int, dict]:
             "base_elevation": to_list(elev_norm, decimals=3),
             "cobertura_superficial": [int(x) for x in cover.reshape(-1)],
             "fuentes": [
-                power_series["source"] if power_series else "NASA POWER API",
+                power_series["source"] if power_series else "POWER API (MERRA-2 · CERES · GPM)",
                 f"AWS Terrarium DEM (zoom {z_dem}) + Esri ArcGIS World Imagery (zoom {z_sat})",
-                "NASA GIBS VIIRS/MODIS True Color (GoogleMapsCompatible_Level9)",
+                "GIBS VIIRS/MODIS True Color (GoogleMapsCompatible_Level9)",
             ],
             "variable_definitions": VARIABLE_DEFINITIONS,
             "earth_system_series": {
@@ -366,6 +439,7 @@ def analyze_zone(payload: dict) -> tuple[int, dict]:
                 "event_window": [start_iso, end_iso],
                 "power": power_series,
                 "usgs": usgs_series,
+                "air_quality": aq_series,
             },
             "timeline": timeline,
             "cached": False,
@@ -383,7 +457,7 @@ def analyze_zone(payload: dict) -> tuple[int, dict]:
 
 
 def fetch_live_events() -> tuple[int, dict]:
-    """Eventos globales activos (NASA EONET + USGS M>=4.5), cacheados 5 minutos."""
+    """Eventos globales activos (EONET + USGS M>=4.5), cacheados 5 minutos."""
     LIVE_CACHE_DIR.mkdir(parents=True, exist_ok=True)
     cache_file = LIVE_CACHE_DIR / "global_events.json"
     if cache_file.exists() and (time.time() - cache_file.stat().st_mtime) < 300:
@@ -394,7 +468,7 @@ def fetch_live_events() -> tuple[int, dict]:
         RATE_LIMITER.wait("eonet")
         req = urllib.request.Request(
             "https://eonet.gsfc.nasa.gov/api/v3/events?limit=15&status=open",
-            headers={"User-Agent": "NASA-SpaceApps-TrendDetective/1.0"},
+            headers={"User-Agent": "EarthTrendDetective-TrendDetective/1.0"},
         )
         with urllib.request.urlopen(req, timeout=8) as r:
             for ev in json.loads(r.read().decode("utf-8")).get("events", []):
@@ -411,7 +485,7 @@ def fetch_live_events() -> tuple[int, dict]:
                         "date": str(geom.get("date", ""))[:10],
                         "lat": float(coords[1]),
                         "lon": float(coords[0]),
-                        "source": "NASA EONET",
+                        "source": "EONET",
                     })
     except Exception:
         pass

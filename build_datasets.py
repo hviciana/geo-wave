@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """
-Carril 1 (Offline ETL Server-less): NASA Space Apps Challenge - Dancing with the SAR's
+Carril 1 (Offline ETL Server-less): Earth System Trend Detective - Dancing with the SAR's
 Descarga y procesa datos geoespaciales reales (sin ejecución en runtime web):
   1. MDE real SRTM / Terrarium (AWS Terrain Tiles) en metros por bounding box exacto.
   2. Ortofotos satelitales reales de alta resolución (ArcGIS World Imagery) + capturas
-     ópticas reales diarias NASA GIBS (MODIS Terra / VIIRS True Color).
+     ópticas reales diarias GIBS (MODIS Terra / VIIRS True Color).
   3. Delimitación oficial real de eventos:
      - Los Ángeles (Palisades Fire, Ene 2025): Polígono oficial NIFC WFIGS (23.448 acres).
      - Kamchatka (Mw 8.8 Jul 2025 + Réplica Mw 7.8 Sep 2025, Etapa NISAR): Hipocentros USGS + corteza costera real.
@@ -51,7 +51,7 @@ def fetch_bytes(url: str, cache_key: str, timeout: int = 12, retries: int = 3) -
     if cache_path.exists() and cache_path.stat().st_size > 0:
         return cache_path.read_bytes()
 
-    headers = {"User-Agent": "NASA-SpaceApps-DancingWithSARs/2.0"}
+    headers = {"User-Agent": "EarthTrendDetective-DancingWithSARs/2.0"}
     for attempt in range(retries):
         try:
             req = urllib.request.Request(url, headers=headers)
@@ -278,7 +278,7 @@ def fetch_real_satellite_rgb(bbox: list[float], zoom: int, out_size: int = 1536,
 
 
 def fetch_nasa_gibs_rgb(bbox: list[float], date_str: str, zoom: int = 9, out_size: int = 512) -> np.ndarray | None:
-    """Descarga captura satelital real diaria de NASA GIBS MODIS Terra True Color."""
+    """Descarga captura satelital real diaria de MODIS Terra (GIBS) True Color."""
     layer = "MODIS_Terra_CorrectedReflectance_TrueColor"
     return fetch_tile_mosaic(
         bbox=bbox,
@@ -585,32 +585,56 @@ VARIABLE_DEFINITIONS = {
     "T2M": {
         "nombre": "Temperatura superficial del aire (2 m)",
         "unidad": "°C",
-        "fuente": "NASA POWER · MERRA-2",
+        "fuente": "MERRA-2 / CERES",
         "definicion": "Temperatura media diaria del aire a 2 metros del suelo; ayuda a detectar olas de calor y estrés térmico previo a incendios.",
     },
     "PRECTOTCORR": {
         "nombre": "Precipitación diaria corregida",
         "unidad": "mm/día",
-        "fuente": "NASA POWER · GPM IMERG / MERRA-2",
+        "fuente": "GPM IMERG / MERRA-2",
         "definicion": "Cantidad total de lluvia caída en 24 horas sobre la región; clave para identificar episodios extremos e inundaciones.",
     },
     "GWETTOP": {
         "nombre": "Humedad superficial del suelo (0–5 cm)",
         "unidad": "índice (0–1)",
-        "fuente": "NASA POWER · MERRA-2",
+        "fuente": "MERRA-2 / CERES",
         "definicion": "Fracción de saturación de agua en los primeros 5 cm de suelo; valores bajos indican sequía de combustible vegetal y valores altos suelos anegados.",
     },
     "RH2M": {
         "nombre": "Humedad relativa (2 m)",
         "unidad": "%",
-        "fuente": "NASA POWER · MERRA-2",
+        "fuente": "MERRA-2 / CERES",
         "definicion": "Porcentaje de vapor de agua en el aire respecto al máximo posible; caídas bruscas (< 20%) aceleran la propagación del fuego.",
     },
     "ALLSKY_SFC_SW_DWN": {
         "nombre": "Radiación solar incidente",
         "unidad": "kWh/m²/día",
-        "fuente": "NASA POWER · CERES SYN1deg",
+        "fuente": "MERRA-2 / GPM · CERES SYN1deg",
         "definicion": "Energía solar que alcanza la superficie terrestre; refleja nubosidad densa o cielos despejados.",
+    },
+    "QV2M": {
+        "nombre": "Humedad específica del aire (2 m)",
+        "unidad": "g/kg",
+        "fuente": "MERRA-2 / AIRS",
+        "definicion": "Masa de vapor de agua por kilogramo de aire; indicador directo de la carga de humedad atmosférica.",
+    },
+    "CAMS_O3": {
+        "nombre": "Ozono troposférico diario (O₃)",
+        "unidad": "µg/m³",
+        "fuente": "Copernicus CAMS · Open-Meteo (equiv. OMI)",
+        "definicion": "Concentración diaria de ozono en superficie; aumenta con radiación intensa y episodios de contaminación fotoquímica.",
+    },
+    "CAMS_NO2": {
+        "nombre": "Dióxido de nitrógeno (NO₂)",
+        "unidad": "µg/m³",
+        "fuente": "Copernicus CAMS · Open-Meteo (equiv. OMI)",
+        "definicion": "Gas traza indicador de emisiones urbanas, tráfico e incendios activos.",
+    },
+    "CAMS_PM25": {
+        "nombre": "Partículas finas (PM₂.₅)",
+        "unidad": "µg/m³",
+        "fuente": "Copernicus CAMS · Open-Meteo (aerosoles)",
+        "definicion": "Aerosoles finos en suspensión; se disparan durante columnas de humo por incendios o polvo en suspensión.",
     },
     "USGS_MAX_MW": {
         "nombre": "Magnitud máxima diaria y conteo sísmico",
@@ -628,11 +652,11 @@ def fetch_nasa_power_daily(
     end_ymd: str,
     cache_key: str,
 ) -> dict | None:
-    """Descarga series diarias reales NASA POWER (MERRA-2 / CERES / GPM) con caché local."""
+    """Descarga series diarias reales MERRA-2 / GPM (MERRA-2 / CERES / GPM) con caché local."""
     url = (
         "https://power.larc.nasa.gov/api/temporal/daily/point?"
         + urllib.parse.urlencode({
-            "parameters": "T2M,PRECTOTCORR,GWETTOP,RH2M,ALLSKY_SFC_SW_DWN",
+            "parameters": "T2M,PRECTOTCORR,GWETTOP,RH2M,ALLSKY_SFC_SW_DWN,QV2M",
             "community": "RE",
             "longitude": f"{lon:.4f}",
             "latitude": f"{lat:.4f}",
@@ -652,7 +676,7 @@ def fetch_nasa_power_daily(
             return None
         dates_raw = sorted(t2m_map.keys())
         dates = []
-        series = {k: [] for k in ("T2M", "PRECTOTCORR", "GWETTOP", "RH2M", "ALLSKY_SFC_SW_DWN")}
+        series = {k: [] for k in ("T2M", "PRECTOTCORR", "GWETTOP", "RH2M", "ALLSKY_SFC_SW_DWN", "QV2M")}
         for ymd in dates_raw:
             vals = {k: params.get(k, {}).get(ymd, -999) for k in series}
             if any(v is None or v <= -900 for v in vals.values()):
@@ -663,7 +687,7 @@ def fetch_nasa_power_daily(
         if not dates:
             return None
         return {
-            "source": "NASA POWER (MERRA-2 · CERES · GPM)",
+            "source": "MERRA-2 · CERES · GPM",
             "resolution": "0.5° × 0.625° (~50 km)",
             "start": dates[0],
             "end": dates[-1],
@@ -818,7 +842,7 @@ def build_la_fires() -> dict:
             lee_speckle_filter(f3, 3),
         ]
 
-    # Descargar observaciones ópticas reales NASA GIBS MODIS Terra para las fechas exactas
+    # Descargar observaciones ópticas reales MODIS Terra (GIBS) para las fechas exactas
     gibs_dates = ["2025-01-02", "2025-01-08", "2025-01-10", "2025-01-14"]
     specs = [
         ("2025-01-02", "Pre-evento", "Mosaico satelital HD previo en Santa Monica Mountains: dosel chaparral intacto (0 dB retrodispersión).", "la_pre_optica.jpg", False),
@@ -877,7 +901,7 @@ def build_la_fires() -> dict:
         "coordenadas": [34.072, -118.585],
         "bbox": bbox,
         "elev_range_m": elev_range_m,
-        "sensor": "NASA POWER (MERRA-2 / GPM) + MODIS GIBS + Perímetro NIFC / RTC-S1",
+        "sensor": "MERRA-2 / GPM + MODIS GIBS + Perímetro NIFC / RTC-S1",
         "tipo_fenomeno": "Pérdida de Biomasa / Cicatriz Térmica",
         "unidad_metrica": "dB (Retrodispersión HV/VH)",
         "escala_metrica_factor": -8.5,
@@ -888,10 +912,10 @@ def build_la_fires() -> dict:
         "base_elevation": to_list(elev_norm, decimals=3),
         "cobertura_superficial": [int(x) for x in cover.reshape(-1)],
         "fuentes": [
-            "NASA POWER API (MERRA-2 · CERES · GPM · 2024-12-01 a 2025-02-15)",
+            "POWER API (MERRA-2 · CERES · GPM) (MERRA-2 · CERES · GPM · 2024-12-01 a 2025-02-15)",
             "NIFC WFIGS Interagency Fire Perimeters (Polígono oficial PALISADES 23.448 acres, Ene 2025)",
             "AWS Terrain Tiles (MDE real SRTM / 3DEP Terrarium)",
-            "ArcGIS World Imagery HD (1536px) & NASA GIBS MODIS Terra",
+            "ArcGIS World Imagery HD (1536px) & MODIS Terra (GIBS)",
         ],
         "variable_definitions": VARIABLE_DEFINITIONS,
         "earth_system_series": {
@@ -1043,7 +1067,7 @@ def build_earthquake() -> dict:
         "coordenadas": [52.95, 159.25],
         "bbox": bbox,
         "elev_range_m": elev_range_m,
-        "sensor": "USGS Earthquake Hazards + NASA POWER + NISAR / ARIA InSAR",
+        "sensor": "USGS Earthquake Hazards + MERRA-2 / GPM + NISAR / ARIA InSAR",
         "tipo_fenomeno": "Deformación de Corteza Terrestre (InSAR)",
         "unidad_metrica": "cm (Desplazamiento LOS)",
         "escala_metrica_factor": 170.0,
@@ -1055,8 +1079,8 @@ def build_earthquake() -> dict:
         "cobertura_superficial": [int(x) for x in cover.reshape(-1)],
         "fuentes": [
             "USGS Earthquake Hazards Program (2025-07-01 a 2025-11-15 · Mw 8.8 & Mw 7.8)",
-            "NASA POWER API (MERRA-2 · CERES · GPM · 2025-07-01 a 2025-11-15)",
-            "NASA-ISRO NISAR Mission (L-Band 24 cm GUNW, lanzado 30 Jul 2025)",
+            "POWER API (MERRA-2 · CERES · GPM) (MERRA-2 · CERES · GPM · 2025-07-01 a 2025-11-15)",
+            "NISAR Mission (L-Band 24 cm GUNW, lanzado 30 Jul 2025)",
             "AWS Terrain Tiles & ArcGIS World Imagery HD (1536px)",
         ],
         "variable_definitions": VARIABLE_DEFINITIONS,
@@ -1178,7 +1202,7 @@ def build_malaga_flood() -> dict:
         "coordenadas": [36.695, -4.505],
         "bbox": bbox,
         "elev_range_m": elev_range_m,
-        "sensor": "NASA POWER (GPM IMERG / MERRA-2) + MODIS GIBS + OPERA DSWx-S1",
+        "sensor": "GPM IMERG / MERRA-2 + MODIS GIBS + OPERA DSWx-S1",
         "tipo_fenomeno": "Reflexión Especular en Agua / Inundación Súbita",
         "unidad_metrica": "dB (Caída Especular VV)",
         "escala_metrica_factor": -9.5,
@@ -1189,10 +1213,10 @@ def build_malaga_flood() -> dict:
         "base_elevation": to_list(elev_norm, decimals=3),
         "cobertura_superficial": [int(x) for x in cover.reshape(-1)],
         "fuentes": [
-            "NASA POWER API (GPM IMERG · MERRA-2 · 2024-10-01 a 2024-12-01)",
+            "POWER API (MERRA-2 · CERES · GPM) (GPM IMERG · MERRA-2 · 2024-10-01 a 2024-12-01)",
             "AWS Terrain Tiles (MDE real de Málaga, Sierra de Mijas y Vega del Guadalhorce)",
-            "NASA ASF Data Search Vertex (OPERA DSWx-S1 / Sentinel-1 RTC)",
-            "ArcGIS World Imagery HD (1536px) & NASA GIBS MODIS Terra",
+            "ASF Data Search Vertex (OPERA DSWx-S1 / Sentinel-1 RTC)",
+            "ArcGIS World Imagery HD (1536px) & MODIS Terra (GIBS)",
         ],
         "variable_definitions": VARIABLE_DEFINITIONS,
         "earth_system_series": {

@@ -213,52 +213,6 @@ export default function TimelineControl({
 
         {/* Controles Visuales y Comparador */}
         <div className="flex items-center gap-2">
-          <div className="flex items-center bg-zinc-950 border border-zinc-800 rounded-lg p-0.5 text-[11px]">
-            <button
-              onClick={() => selectRenderMode('hybrid')}
-              className={`inline-flex items-center gap-1 px-2 py-1 rounded-md transition-colors ${
-                effectiveRenderMode === 'hybrid'
-                  ? 'bg-zinc-100 text-zinc-950 font-semibold'
-                  : 'text-zinc-400 hover:text-zinc-100'
-              }`}
-            >
-              <Film className="w-3 h-3" />
-              Fusión 3D
-            </button>
-            <button
-              onClick={() => selectRenderMode('optical')}
-              className={`inline-flex items-center gap-1 px-2 py-1 rounded-md transition-colors ${
-                effectiveRenderMode === 'optical'
-                  ? 'bg-zinc-100 text-zinc-950 font-semibold'
-                  : 'text-zinc-400 hover:text-zinc-100'
-              }`}
-            >
-              <Eye className="w-3 h-3" />
-              Satelital HD
-            </button>
-            <button
-              onClick={() => selectRenderMode('driver')}
-              className={`inline-flex items-center gap-1 px-2 py-1 rounded-md transition-colors ${
-                effectiveRenderMode === 'driver'
-                  ? 'bg-zinc-100 text-zinc-950 font-semibold'
-                  : 'text-zinc-400 hover:text-zinc-100'
-              }`}
-            >
-              <Activity className="w-3 h-3" />
-              Var. Cruzada
-            </button>
-            <button
-              onClick={() => selectRenderMode('significance')}
-              className={`inline-flex items-center gap-1 px-2 py-1 rounded-md transition-colors ${
-                effectiveRenderMode === 'significance'
-                  ? 'bg-zinc-100 text-zinc-950 font-semibold'
-                  : 'text-zinc-400 hover:text-zinc-100'
-              }`}
-            >
-              <Sigma className="w-3 h-3" />
-              p&lt;0.05
-            </button>
-          </div>
 
           <button
             onClick={() => setCompareMode((v) => !v)}

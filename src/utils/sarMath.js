@@ -345,13 +345,33 @@ export function getLandCoverLabel(code) {
   return 'Suelo Desnudo / Agua';
 }
 
-function buildDriverDescriptor(id, coverCode, row, col, baseElev) {
+function sampleSeriesAtStep(arr, idx, totalSteps = 4) {
+  if (!Array.isArray(arr) || arr.length === 0) return null;
+  const frac = totalSteps > 1 ? Math.min(1, Math.max(0, idx / (totalSteps - 1))) : 0;
+  const sIdx = Math.min(arr.length - 1, Math.round((arr.length - 1) * frac));
+  const v = Number(arr[sIdx]);
+  return Number.isFinite(v) ? v : null;
+}
+
+function buildDriverDescriptor(id, coverCode, row, col, baseElev, dataset = null) {
+  const isLive = Boolean(dataset?.is_live);
+  const powerVars = dataset?.earth_system_series?.power?.variables;
+  const nSteps = dataset?.timeline?.length || 4;
+
   if (id.includes('los-angeles') || id.includes('thermal')) {
+    const liveT2m = isLive ? powerVars?.T2M : null;
+    const tBase = Array.isArray(liveT2m) && liveT2m.length > 0 ? Math.min(...liveT2m) : null;
     return {
-      name: 'Anomalía Térmica / Déficit Hídrico (MODIS)',
+      name: isLive ? 'Anomalía Térmica MERRA-2 / GPM (T2M)' : 'Anomalía Térmica / Déficit Hídrico (MODIS)',
       unit: '°C',
-      compute: (raw, idx) =>
-        Number((0.8 + idx * 0.25 + (coverCode === 1 ? 0.35 : 0.15) * Math.sin(row * 0.13 + idx) + Math.abs(raw) * 14.2).toFixed(2)),
+      compute: (raw, idx) => {
+        if (tBase !== null) {
+          const tVal = sampleSeriesAtStep(liveT2m, idx, nSteps) ?? tBase;
+          const elevCool = (coverCode === 1 ? 0.25 : 0.0) - baseElev * 1.2;
+          return Number((Math.max(0, tVal - tBase) + Math.abs(raw) * 6.0 + elevCool).toFixed(2));
+        }
+        return Number((0.8 + idx * 0.25 + (coverCode === 1 ? 0.35 : 0.15) * Math.sin(row * 0.13 + idx) + Math.abs(raw) * 14.2).toFixed(2));
+      },
     };
   }
   if (id.includes('earthquake') || id.includes('seismic')) {
@@ -362,13 +382,16 @@ function buildDriverDescriptor(id, coverCode, row, col, baseElev) {
         Number((0.25 + idx * 0.06 + 0.05 * Math.cos(col * 0.11 + idx) + Math.abs(raw) * 8.6).toFixed(2)),
     };
   }
+  const liveRain = isLive ? powerVars?.PRECTOTCORR : null;
   return {
-    name: 'Acumulación Pluviométrica GPM / Cuenca',
+    name: isLive ? 'Precipitación MERRA-2 / GPM' : 'Acumulación Pluviométrica GPM / Cuenca',
     unit: 'mm',
     compute: (raw, idx) => {
-      const basinRain = [12, 118, 156, 74][idx] ?? 20;
+      const sampled = isLive ? sampleSeriesAtStep(liveRain, idx, nSteps) : null;
+      const basinRain = sampled !== null ? sampled : ([12, 118, 156, 74][idx] ?? 20);
       const elevAtten = Math.max(0.25, 1 - baseElev * 1.4);
-      return Number((basinRain * elevAtten * 0.35 + Math.max(0, raw) * 295).toFixed(1));
+      const localRunoff = isLive ? Math.max(0, raw) * 18 : Math.max(0, raw) * 295;
+      return Number((basinRain * (isLive ? 1.0 : elevAtten * 0.35) + localRunoff).toFixed(1));
     },
   };
 }
@@ -543,14 +566,14 @@ export function computeSpatialDetectiveMaps(dataset) {
 
   const ys = new Array(nPts);
   const ds = new Array(nPts);
-  const baseDriverMeta = buildDriverDescriptor(id, 0, 0, 0, 0);
+  const baseDriverMeta = buildDriverDescriptor(id, 0, 0, 0, 0, dataset);
 
   for (let i = 0; i < n; i++) {
     const row = Math.floor(i / grid);
     const col = i % grid;
     const baseElev = dataset.base_elevation?.[i] ?? 0;
     const coverCode = dataset.cobertura_superficial?.[i] ?? 0;
-    const driverMeta = buildDriverDescriptor(id, coverCode, row, col, baseElev);
+    const driverMeta = buildDriverDescriptor(id, coverCode, row, col, baseElev, dataset);
 
     let maxAbsRaw = 0;
     let peakDriver = -Infinity;
@@ -625,7 +648,7 @@ export function translatePixelPhysics(dataset, vertexIdx, tFloat, buffers) {
   const physicalVal = toPhysicalVal(defNorm);
   const unitShort = (dataset.unidad_metrica || '').split(' ')[0];
 
-  const driverMeta = buildDriverDescriptor(id, coverCode, row, col, baseElev);
+  const driverMeta = buildDriverDescriptor(id, coverCode, row, col, baseElev, dataset);
 
   const series = (dataset.timeline || []).map((step, idx) => {
     const raw = step?.deformacion_z?.[safeIdx] ?? 0;
@@ -736,7 +759,7 @@ export function translatePixelPhysics(dataset, vertexIdx, tFloat, buffers) {
 }
 
 /**
- * Analiza una serie temporal diaria/mensual larga (NASA POWER, USGS o CSV importado)
+ * Analiza una serie temporal diaria/mensual larga (MERRA-2 / GPM, USGS o CSV importado)
  * devolviendo pendiente OLS, t-Student p-valor, Mann-Kendall S e intervalo IC 95%.
  */
 export function analyzeEarthSystemSeries(dates = [], values = [], unit = '') {

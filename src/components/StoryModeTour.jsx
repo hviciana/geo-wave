@@ -14,8 +14,8 @@ const STORY_SCRIPTS = {
       t: 2,
       optical: true,
       compare: false,
-      title: '2. Pluma de Humo en NASA GIBS MODIS (10 Ene)',
-      text: 'El satélite óptico diario NASA MODIS captura la columna de humo tapando las crestas costeras entre Topanga y Palisades.',
+      title: '2. Pluma de Humo en MODIS (10 Ene)',
+      text: 'El satélite óptico diario MODIS captura la columna de humo tapando las crestas costeras entre Topanga y Palisades.',
     },
     {
       t: 2,
@@ -45,7 +45,7 @@ const STORY_SCRIPTS = {
       optical: true,
       compare: false,
       title: '2. Megaterremoto USGS Mw 8.8 y Nubes del Pacífico',
-      text: 'El 30 de julio de 2025 (lanzamiento de NISAR) un sismo Mw 8.8 sacude Kamchatka mientras la cobertura nubosa NASA MODIS bloquea el óptico.',
+      text: 'El 30 de julio de 2025 (lanzamiento de NISAR) un sismo Mw 8.8 sacude Kamchatka mientras la cobertura nubosa MODIS bloquea el óptico.',
     },
     {
       t: 3,
@@ -74,8 +74,8 @@ const STORY_SCRIPTS = {
       t: 1,
       optical: true,
       compare: false,
-      title: '2. Nubes Convectivas DANA en NASA MODIS (13 Nov)',
-      text: 'La captura óptica real de NASA GIBS muestra cómo las nubes torrenciales bloquean por completo la observación óptica del valle.',
+      title: '2. Nubes Convectivas DANA en MODIS (13 Nov)',
+      text: 'La captura óptica real de MODIS muestra cómo las nubes torrenciales bloquean por completo la observación óptica del valle.',
     },
     {
       t: 2,

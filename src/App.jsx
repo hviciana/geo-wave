@@ -6,6 +6,9 @@ import TimelineControl from './components/TimelineControl';
 import ExaggerationPanel from './components/ExaggerationPanel';
 import StoryModeTour from './components/StoryModeTour';
 import { computeInterpolatedBuffers } from './utils/sarMath';
+import { analyzeZoneClientSide } from './utils/liveZoneClient';
+
+const API_BASE = (import.meta.env.VITE_API_BASE_URL || '').replace(/\/$/, '');
 
 const SCENARIOS = [
   {
@@ -102,7 +105,8 @@ function AppContent() {
   const [isLooping, setIsLooping] = useState(true);
   const [playbackSpeed, setPlaybackSpeed] = useState(1);
   const [discreteOnly, setDiscreteOnly] = useState(false);
-  const [renderMode, setRenderMode] = useState('hybrid'); // 'hybrid' | 'optical' | 'driver' | 'significance'
+  const [renderMode, setRenderMode] = useState('gibs'); // 'gibs' (vista satélite real) | 'hybrid' (simulación) | 'driver'
+  const [gibsLayerId, setGibsLayerId] = useState('truecolor');
   const [compareMode, setCompareMode] = useState(false);
   const [splitX, setSplitX] = useState(0.5);
   const [exaggeration, setExaggeration] = useState(2);
@@ -112,12 +116,12 @@ function AppContent() {
   const [activeStep, setActiveStep] = useState(1);
   const [focusSubzone, setFocusSubzone] = useState({ id: 'all', lat: null, lon: null, nonce: 0 });
 
-  const opticalMode = renderMode === 'optical';
+  const opticalMode = renderMode === 'gibs';
   const setOpticalMode = (valOrFn) => {
     setRenderMode((prev) => {
-      const prevBool = prev === 'optical';
+      const prevBool = prev === 'gibs';
       const nextBool = typeof valOrFn === 'function' ? valOrFn(prevBool) : Boolean(valOrFn);
-      return nextBool ? 'optical' : 'hybrid';
+      return nextBool ? 'gibs' : 'hybrid';
     });
   };
 
@@ -139,7 +143,7 @@ function AppContent() {
     setTFloat(0);
     tFloatRef.current = 0;
     setIsPlaying(false);
-    setRenderMode('hybrid');
+    setRenderMode('gibs');
     setCompareMode(false);
     setSplitX(0.5);
     setStoryModeActive(false);
@@ -174,14 +178,30 @@ function AppContent() {
     setLoading(true);
     setLiveError('');
     try {
-      const res = await fetch('/api/analyze-zone', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(params),
-      });
-      const data = await res.json();
-      if (!res.ok || !Array.isArray(data?.timeline) || !Array.isArray(data?.base_elevation)) {
-        throw new Error(data?.error || 'No se pudo analizar la zona en vivo');
+      let data = null;
+      if (import.meta.env.DEV || API_BASE) {
+        try {
+          const res = await fetch(`${API_BASE}/api/analyze-zone`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(params),
+          });
+          const ct = res.headers.get('content-type') || '';
+          if (res.ok && ct.includes('application/json')) {
+            const parsed = await res.json();
+            if (Array.isArray(parsed?.timeline) && Array.isArray(parsed?.base_elevation)) {
+              data = parsed;
+            }
+          }
+        } catch {
+          // Respaldo transparente al analizador directo en navegador
+        }
+      }
+      if (!data) {
+        data = await analyzeZoneClientSide(params);
+      }
+      if (!Array.isArray(data?.timeline) || !Array.isArray(data?.base_elevation)) {
+        throw new Error('No se pudo analizar la zona seleccionada');
       }
       setDatasetCache((prev) => ({ ...prev, [data.id]: data }));
       setActiveScenarioId(data.id);
@@ -190,7 +210,7 @@ function AppContent() {
       setTFloat(0);
       tFloatRef.current = 0;
       setIsPlaying(false);
-      setRenderMode('hybrid');
+      setRenderMode('gibs');
       setCompareMode(false);
       setSplitX(0.5);
       setStoryModeActive(false);
@@ -303,16 +323,16 @@ function AppContent() {
     const maxIdx = Math.max(0, (dataset?.timeline?.length || 1) - 1);
     if (stepNum === 1) {
       setCompareMode(false);
-      setRenderMode('hybrid');
+      setRenderMode('gibs');
     } else if (stepNum === 2) {
       setCompareMode(true);
-      setRenderMode('hybrid');
+      setRenderMode('gibs');
       setSplitX(0.5);
       tFloatRef.current = maxIdx;
       setTFloat(maxIdx);
     } else if (stepNum === 3) {
       setCompareMode(false);
-      setRenderMode('hybrid');
+      setRenderMode('gibs');
       tFloatRef.current = maxIdx;
       setTFloat(maxIdx);
     }
@@ -351,7 +371,7 @@ function AppContent() {
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
             <div className="bg-zinc-900 border border-zinc-700 rounded-2xl px-5 py-3.5 flex items-center gap-3 text-sm font-medium text-zinc-100 shadow-2xl">
               <Loader2 className="w-4 h-4 animate-spin text-zinc-300" />
-              Cargando relieve 3D y series NASA POWER / GIBS...
+              Cargando relieve 3D y series satelitales...
             </div>
           </div>
         )}
@@ -365,9 +385,9 @@ function AppContent() {
       <header className="min-h-[52px] bg-zinc-900/95 backdrop-blur-xl border-b border-zinc-800 px-4 py-2 flex flex-wrap items-center justify-between gap-2.5 shrink-0">
         <div className="flex items-center gap-3.5">
           <div className="flex items-center gap-2 text-zinc-100 text-xs font-semibold tracking-tight">
-            <Compass className="w-4 h-4 text-zinc-300" />
-            <span>Dancing with the SAR&apos;s</span>
-            <span className="hidden sm:inline text-zinc-500 font-mono font-normal text-[11px]">/ NASA</span>
+            <Compass className="w-4 h-4 text-emerald-300" />
+            <span>Earth System Trend Detective</span>
+            <span className="hidden sm:inline text-zinc-400 font-mono font-normal text-[11px]">· Observación Satelital 3D</span>
           </div>
 
           <nav className="hidden md:flex items-center gap-1 bg-zinc-950 p-1 rounded-xl border border-zinc-800">
@@ -450,6 +470,8 @@ function AppContent() {
               buffers={buffers}
               activeStep={activeStep}
               focusSubzone={focusSubzone}
+              gibsLayerId={gibsLayerId}
+              setGibsLayerId={setGibsLayerId}
             />
           )}
         </main>
@@ -475,6 +497,7 @@ function AppContent() {
             activeSubzoneId={focusSubzone.id}
             onFocusSubzone={handleFocusSubzone}
             onBackToGlobe={handleBackToGlobe}
+            gibsLayerId={gibsLayerId}
           />
         )}
       </div>

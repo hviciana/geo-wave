@@ -1,4 +1,4 @@
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Activity,
   ArrowLeft,
@@ -19,6 +19,7 @@ import {
   SlidersHorizontal,
   Upload,
   Waves,
+  Eye,
 } from 'lucide-react';
 import {
   analyzeEarthSystemSeries,
@@ -26,6 +27,7 @@ import {
   parseOfficialCsvText,
   translatePixelPhysics,
 } from '../utils/sarMath';
+import { getGibsLayer } from '../utils/gibsLayers';
 
 const SCENARIO_GUIDES = {
   'los-angeles': {
@@ -51,7 +53,7 @@ const SCENARIO_GUIDES = {
     findings: [
       {
         title: 'El radar atravesó la pluma de humo',
-        body: 'Mientras NASA MODIS óptico quedaba ciego el 10 de enero bajo el humo denso, el SAR delimitó el avance térmico en los cañones.',
+        body: 'Mientras MODIS óptico quedaba ciego el 10 de enero bajo el humo denso, el SAR delimitó el avance térmico en los cañones.',
       },
       {
         title: 'Validación con perímetro oficial NIFC WFIGS',
@@ -69,7 +71,7 @@ const SCENARIO_GUIDES = {
     subtitle: 'Megaterremoto tectónico · Kamchatka, Pacífico · Julio–Noviembre 2025',
     narrativeTitle: 'Ruptura cortical Mw 8.8 en la etapa científica NISAR',
     narrativeBody:
-      'El 30 de julio de 2025, coincidiendo con el lanzamiento de la misión NASA-ISRO NISAR, un megaterremoto Mw 8.8 y su réplica Mw 7.8 deformaron la costa entre la Bahía de Avacha y Cabo Shipunsky.',
+      'El 30 de julio de 2025, coincidiendo con el lanzamiento de la misión NISAR (Banda L), un megaterremoto Mw 8.8 y su réplica Mw 7.8 deformaron la costa entre la Bahía de Avacha y Cabo Shipunsky.',
     kpis: [
       { value: 'Mw 8.8', label: 'Magnitud USGS', sub: 'Ruptura principal · 30 jul' },
       { value: '±170 cm', label: 'Desplazamiento LOS', sub: 'Levantamiento / hundimiento' },
@@ -152,17 +154,20 @@ function getGuide(dataset) {
       dataset?.fecha_inicio && dataset?.fecha_fin
         ? `${dataset.fecha_inicio} → ${dataset.fecha_fin}`
         : 'Ventana regional seleccionada';
+    const liveTopic =
+      dataset?.tipo_fenomeno ||
+      (id.includes('thermal') ? 'thermal' : id.includes('seismic') ? 'seismic' : 'hydrology');
     return {
-      subtitle: `${dataset?.sensor || 'NASA POWER · GIBS · Terrarium'} · ${spanStr}`,
+      subtitle: `${dataset?.sensor || 'MERRA-2 / GPM · GIBS · Terrarium'} · ${spanStr}`,
       narrativeTitle:
-        dataset?.phenomenonMode === 'live-thermal'
+        liveTopic === 'thermal'
           ? 'Diagnóstico térmico y balance hídrico regional'
-          : dataset?.phenomenonMode === 'live-seismic'
+          : liveTopic === 'seismic'
             ? 'Actividad sísmica USGS y respuesta superficial'
             : 'Balance hídrico y precipitación regional en vivo',
       narrativeBody:
         dataset?.resumen ||
-        'Análisis regional en tiempo real sobre relieve MDE Terrarium, texturas temporales MODIS GIBS y serie diaria oficial NASA POWER (MERRA-2 / CERES / GPM).',
+        'Análisis regional en tiempo real sobre relieve MDE Terrarium, texturas temporales MODIS GIBS y serie diaria oficial MERRA-2 / CERES / GPM.',
       kpis: [
         {
           value: `${Math.round(elev[0])}–${Math.round(elev[1])} m`,
@@ -172,7 +177,7 @@ function getGuide(dataset) {
         {
           value: `${nDays || '—'} días`,
           label: 'Serie diaria real',
-          sub: 'NASA POWER · USGS',
+          sub: 'MERRA-2 / GPM · USGS',
         },
         {
           value: `${tl.length || 4} pasos`,
@@ -336,6 +341,69 @@ function PixelTimeSeriesChart({ series, unit, trendStats }) {
   );
 }
 
+const VAR_SHORT_LABELS = {
+  T2M: 'Temperatura',
+  PRECTOTCORR: 'Lluvia',
+  GWETTOP: 'Humedad suelo',
+  RH2M: 'Humedad rel.',
+  ALLSKY_SFC_SW_DWN: 'Radiación solar',
+  QV2M: 'Vapor aire',
+  CAMS_O3: 'Ozono O₃',
+  CAMS_NO2: 'NO₂',
+  CAMS_PM25: 'PM₂.₅',
+  USGS_MAX_MW: 'Sismos USGS',
+};
+
+function DailySeriesChart({ analysis }) {
+  if (!analysis?.points?.length || analysis.points.length < 2) return null;
+  const width = 280;
+  const height = 86;
+  const padX = 10;
+  const padTop = 10;
+  const padBot = 16;
+  const pts = analysis.points;
+  const n = pts.length;
+  const vals = pts.map((p) => p.val);
+  const firstY = analysis.meanVal - analysis.slopePerStep * ((n - 1) / 2);
+  const lastY = firstY + analysis.slopePerStep * (n - 1);
+  const minVal = Math.min(...vals, firstY, lastY);
+  const maxVal = Math.max(...vals, firstY, lastY);
+  const span = Math.max(1e-4, maxVal - minVal);
+
+  const mapX = (i) => padX + (i / Math.max(1, n - 1)) * (width - padX * 2);
+  const mapY = (v) => padTop + (1 - (v - minVal) / span) * (height - padTop - padBot);
+  const pathD = pts.map((p, i) => `${i === 0 ? 'M' : 'L'} ${mapX(i).toFixed(1)} ${mapY(p.val).toFixed(1)}`).join(' ');
+  const trendColor = analysis.isSignificant ? '#34d399' : '#a1a1aa';
+
+  return (
+    <div className="bg-zinc-950/90 border border-zinc-800 rounded-xl p-2">
+      <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-[78px] overflow-visible">
+        <path d={pathD} fill="none" stroke="#38bdf8" strokeWidth="1.6" strokeLinejoin="round" />
+        <line
+          x1={mapX(0)}
+          y1={mapY(firstY)}
+          x2={mapX(n - 1)}
+          y2={mapY(lastY)}
+          stroke={trendColor}
+          strokeWidth="1.6"
+          strokeDasharray="4 3"
+        />
+        <text x={padX} y={height - 3} fontSize="8" fill="#71717a" fontFamily="monospace">
+          {analysis.start}
+        </text>
+        <text x={width - padX} y={height - 3} textAnchor="end" fontSize="8" fill="#71717a" fontFamily="monospace">
+          {analysis.end}
+        </text>
+      </svg>
+      <div className="flex items-center justify-between text-[9px] font-mono text-zinc-400 px-1">
+        <span>Mín {analysis.minVal.toFixed(1)} {analysis.unit}</span>
+        <span>Media {analysis.meanVal.toFixed(1)} {analysis.unit}</span>
+        <span>Máx {analysis.maxVal.toFixed(1)} {analysis.unit}</span>
+      </div>
+    </div>
+  );
+}
+
 export default function ExaggerationPanel({
   dataset,
   tFloat,
@@ -354,11 +422,18 @@ export default function ExaggerationPanel({
   activeSubzoneId,
   onFocusSubzone,
   onBackToGlobe,
+  gibsLayerId = 'truecolor',
 }) {
   const [longWindow, setLongWindow] = useState(true);
   const [importedCsv, setImportedCsv] = useState(null);
   const [panelTab, setPanelTab] = useState('simple');
+  const [selectedVar, setSelectedVar] = useState(null);
   const csvInputRef = useRef(null);
+
+  useEffect(() => {
+    setSelectedVar(dataset?.earth_system_series?.primary_var || null);
+    setImportedCsv(null);
+  }, [dataset?.id]);
 
   const effectiveRenderMode = renderMode || (opticalMode ? 'optical' : 'hybrid');
   const pixelReport = translatePixelPhysics(dataset, selectedVertex, tFloat, buffers);
@@ -367,6 +442,30 @@ export default function ExaggerationPanel({
   const guide = getGuide(dataset);
   const timeline = dataset?.timeline || [];
   const nearestStepIdx = Math.round(Number.isFinite(Number(tFloat)) ? Number(tFloat) : 0);
+
+  const availableVars = useMemo(() => {
+    const es = dataset?.earth_system_series;
+    if (!es) return [];
+    const list = [];
+    if (es.usgs?.dates?.length >= 3 && es.usgs?.max_mw?.length) {
+      list.push({ key: 'USGS_MAX_MW', label: VAR_SHORT_LABELS.USGS_MAX_MW });
+    }
+    const pwVars = es.power?.variables || {};
+    Object.keys(pwVars).forEach((k) => {
+      if (pwVars[k]?.length >= 3) {
+        list.push({ key: k, label: VAR_SHORT_LABELS[k] || k });
+      }
+    });
+    const aqVars = es.air_quality?.variables || {};
+    Object.keys(aqVars).forEach((k) => {
+      if (aqVars[k]?.length >= 3) {
+        list.push({ key: k, label: VAR_SHORT_LABELS[k] || k });
+      }
+    });
+    return list;
+  }, [dataset]);
+
+  const activeVarKey = selectedVar || dataset?.earth_system_series?.primary_var || availableVars[0]?.key || 'T2M';
 
   const dailyContext = useMemo(() => {
     if (importedCsv?.analysis) {
@@ -379,9 +478,9 @@ export default function ExaggerationPanel({
     }
     const es = dataset?.earth_system_series;
     const pw = es?.power;
-    const primaryVar = es?.primary_var || 'T2M';
-    const def = dataset?.variable_definitions?.[primaryVar] || null;
-    if (primaryVar === 'USGS_MAX_MW' && es?.usgs?.dates?.length >= 3) {
+    const aq = es?.air_quality;
+    const def = dataset?.variable_definitions?.[activeVarKey] || null;
+    if (activeVarKey === 'USGS_MAX_MW' && es?.usgs?.dates?.length >= 3) {
       const dates = es.usgs.dates;
       const vals = es.usgs.max_mw;
       const sliceN = longWindow ? dates.length : Math.min(dates.length, 30);
@@ -392,19 +491,30 @@ export default function ExaggerationPanel({
         analysis: analyzeEarthSystemSeries(dates.slice(-sliceN), vals.slice(-sliceN), def?.unidad || 'Mw'),
       };
     }
-    if (pw?.dates?.length && pw?.variables?.[primaryVar]?.length) {
-      const dates = pw.dates;
-      const vals = pw.variables[primaryVar];
+    if (aq?.dates?.length && aq?.variables?.[activeVarKey]?.length) {
+      const dates = aq.dates;
+      const vals = aq.variables[activeVarKey];
       const sliceN = longWindow ? dates.length : Math.min(dates.length, 30);
       return {
-        title: def?.nombre || primaryVar,
+        title: def?.nombre || activeVarKey,
+        source: aq.source,
+        def,
+        analysis: analyzeEarthSystemSeries(dates.slice(-sliceN), vals.slice(-sliceN), def?.unidad || ''),
+      };
+    }
+    if (pw?.dates?.length && pw?.variables?.[activeVarKey]?.length) {
+      const dates = pw.dates;
+      const vals = pw.variables[activeVarKey];
+      const sliceN = longWindow ? dates.length : Math.min(dates.length, 30);
+      return {
+        title: def?.nombre || activeVarKey,
         source: pw.source,
         def,
         analysis: analyzeEarthSystemSeries(dates.slice(-sliceN), vals.slice(-sliceN), def?.unidad || ''),
       };
     }
     return null;
-  }, [dataset, longWindow, importedCsv]);
+  }, [dataset, longWindow, importedCsv, activeVarKey]);
 
   const handleCsvUpload = (e) => {
     const file = e.target.files?.[0];
@@ -454,8 +564,18 @@ export default function ExaggerationPanel({
 
   const isLiveZone = Boolean(dataset?.is_live);
 
+  const activeGibs = getGibsLayer(gibsLayerId);
   const colorLegend =
-    effectiveRenderMode === 'significance'
+    effectiveRenderMode === 'gibs'
+      ? {
+        title: `${activeGibs.label} · Satélite WMTS`,
+        grad: activeGibs.legend?.grad || 'from-sky-700 via-emerald-600 to-amber-200',
+        left: activeGibs.legend?.left || 'Imagen real',
+        right: activeGibs.legend?.right || `Resolución ${activeGibs.resolution}`,
+        Icon: Eye,
+        note: `${activeGibs.description} Resolución nativa ${activeGibs.resolution}: si la caja es pequeña, la capa se verá en bloques porque es el tamaño real del píxel del satélite.`,
+      }
+      : effectiveRenderMode === 'significance'
       ? {
         title: 'Significancia lineal (p < 0.05 en T₀→T₃)',
         grad: 'from-orange-500 via-zinc-600 to-emerald-400',
@@ -474,15 +594,15 @@ export default function ExaggerationPanel({
           note: 'Mapa espacial de susceptibilidad física (esfuerzo cortical, aridez topográfica o acumulación hídrica) calculado sobre toda la ventana.',
         }
         : isLiveZone
-          ? dataset?.phenomenonMode === 'live-thermal'
+          ? (dataset?.tipo_fenomeno === 'thermal' || id.includes('thermal'))
             ? {
-              title: 'Estrés térmico y déficit hídrico (NASA POWER)',
+              title: 'Estrés térmico y déficit hídrico (MERRA-2 / GPM)',
               grad: 'from-emerald-600 via-amber-500 to-rose-600',
               left: 'Referencia fresca',
               right: 'Anomalía cálida/seca',
               Icon: Flame,
             }
-            : dataset?.phenomenonMode === 'live-seismic'
+            : (dataset?.tipo_fenomeno === 'seismic' || id.includes('seismic'))
               ? {
                 title: 'Sismicidad USGS y deformación superficial',
                 grad: 'from-sky-600 via-zinc-500 to-orange-500',
@@ -787,7 +907,7 @@ export default function ExaggerationPanel({
                 {colorLegend.note}
               </p>
             )}
-            {effectiveRenderMode === 'optical' && (
+            {(effectiveRenderMode === 'optical' || (effectiveRenderMode === 'gibs' && !activeGibs.overlay)) && (
               <p className="text-[11px] text-zinc-300 bg-zinc-900 border border-zinc-800 rounded-xl px-2.5 py-2 leading-relaxed">
                 Estás viendo fotografías satelitales reales por fecha. Si aparecen velos grises o blancos, son nubes reales captadas por el satélite óptico.
               </p>
@@ -814,14 +934,49 @@ export default function ExaggerationPanel({
                 )}
               </div>
 
+              {availableVars.length > 1 && (
+                <div className="flex flex-wrap gap-1">
+                  {availableVars.map((v) => {
+                    const active = activeVarKey === v.key && !importedCsv;
+                    return (
+                      <button
+                        key={v.key}
+                        type="button"
+                        onClick={() => {
+                          setImportedCsv(null);
+                          setSelectedVar(v.key);
+                        }}
+                        className={`px-2 py-0.5 rounded-lg border text-[10px] transition-colors ${
+                          active
+                            ? 'bg-emerald-400/20 border-emerald-400/75 text-emerald-200 font-semibold'
+                            : 'bg-zinc-900 border-zinc-800 text-zinc-400 hover:text-zinc-200 hover:border-zinc-600'
+                        }`}
+                      >
+                        {v.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+
               {dailyContext?.analysis && (
-                <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-2.5 space-y-1">
-                  <div className="text-[11px] font-medium text-zinc-100">{dailyContext.title}</div>
+                <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-2.5 space-y-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="text-[11px] font-medium text-zinc-100 truncate">{dailyContext.title}</div>
+                    <button
+                      type="button"
+                      onClick={() => (importedCsv ? setImportedCsv(null) : setLongWindow((v) => !v))}
+                      className="px-2 py-0.5 rounded-md bg-zinc-950 border border-zinc-700 text-[10px] font-mono text-cyan-300 hover:border-cyan-400 shrink-0"
+                    >
+                      {importedCsv ? 'Serie oficial' : longWindow ? `Completa (${dailyContext.analysis.count}d)` : 'Últimos 30d'}
+                    </button>
+                  </div>
                   <p className="text-[11px] text-zinc-300 leading-relaxed">
                     {dailyContext.analysis.isSignificant
-                      ? `En los últimos ${dailyContext.analysis.count} días muestra un ritmo claro de ${dailyContext.analysis.slopeLabel}. Es muy improbable que se deba al azar.`
+                      ? `En ${dailyContext.analysis.count} días muestra un ritmo claro de ${dailyContext.analysis.slopeLabel}. Es muy improbable que se deba al azar (p = ${dailyContext.analysis.pValue < 0.01 ? '<0.01' : dailyContext.analysis.pValue.toFixed(3)}).`
                       : `En ${dailyContext.analysis.count} días no hay una subida o bajada continua (p = ${dailyContext.analysis.pValue.toFixed(2)}), aunque puede haber picos concretos.`}
                   </p>
+                  <DailySeriesChart analysis={dailyContext.analysis} />
                 </div>
               )}
 
@@ -1000,9 +1155,33 @@ export default function ExaggerationPanel({
                   trendStats={pixelReport.trendStats}
                 />
 
-                {/* Serie diaria/larga del Sistema Terrestre + Definición para estudiantes + Import/Export */}
+                {/* Serie diaria/larga del Sistema Terrestre + Selector Multi-Satélite + Definición + Gráfica */}
                 {dailyContext?.analysis && (
                   <div className="bg-zinc-900/90 border border-zinc-800 rounded-xl p-2.5 space-y-2">
+                    {availableVars.length > 1 && (
+                      <div className="flex flex-wrap gap-1 pb-1 border-b border-zinc-800/80">
+                        {availableVars.map((v) => {
+                          const active = activeVarKey === v.key && !importedCsv;
+                          return (
+                            <button
+                              key={v.key}
+                              type="button"
+                              onClick={() => {
+                                setImportedCsv(null);
+                                setSelectedVar(v.key);
+                              }}
+                              className={`px-2 py-0.5 rounded-md border text-[10px] font-mono transition-colors ${
+                                active
+                                  ? 'bg-cyan-400/20 border-cyan-400/75 text-cyan-200 font-semibold'
+                                  : 'bg-zinc-950 border-zinc-800 text-zinc-400 hover:text-zinc-200 hover:border-zinc-600'
+                              }`}
+                            >
+                              {v.key}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
                     <div className="flex items-center justify-between gap-2">
                       <div className="text-[11px] font-semibold text-zinc-100 truncate">
                         {dailyContext.title}
@@ -1013,7 +1192,7 @@ export default function ExaggerationPanel({
                         className="px-2 py-0.5 rounded-md bg-zinc-950 border border-zinc-700 text-[10px] font-mono text-cyan-300 hover:border-cyan-400 shrink-0"
                       >
                         {importedCsv
-                          ? 'Volver a NASA'
+                          ? 'Serie oficial'
                           : longWindow
                             ? `Completa (${dailyContext.analysis.count}d)`
                             : 'Últimos 30d'}
@@ -1023,6 +1202,8 @@ export default function ExaggerationPanel({
                     <div className="text-[10px] font-mono text-zinc-400">
                       {dailyContext.source} · {dailyContext.analysis.start} → {dailyContext.analysis.end}
                     </div>
+
+                    <DailySeriesChart analysis={dailyContext.analysis} />
 
                     <div className="grid grid-cols-2 gap-1.5 text-[10px]">
                       <div className="bg-zinc-950 border border-zinc-800 rounded-lg px-2 py-1">
@@ -1097,11 +1278,11 @@ export default function ExaggerationPanel({
               <div className="space-y-2 text-[11px]">
                 <div className="flex items-center gap-1.5 font-mono text-zinc-200">
                   <Radio className="w-3.5 h-3.5 text-zinc-400" />
-                  {dataset?.sensor || 'NASA POWER · NASA GIBS · AWS Terrarium'}
+                  {dataset?.sensor || 'MERRA-2 / GPM · Satélite WMTS · AWS Terrarium'}
                 </div>
                 <div className="grid grid-cols-2 gap-2 text-[10px]">
                   <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-2">
-                    <div className="font-mono text-zinc-100 font-medium">NASA POWER · MERRA-2</div>
+                    <div className="font-mono text-zinc-100 font-medium">MERRA-2 · CERES · GPM</div>
                     <div className="text-zinc-400 mt-0.5 leading-snug">
                       Series diarias reales (~0.5° × 0.625°) de temperatura, lluvia, humedad y radiación.
                     </div>

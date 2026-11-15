@@ -75,7 +75,7 @@ export default function OrbitalGlobe({
   const mapRef = useRef(null);
   const markersRef = useRef([]);
 
-  const [topic, setTopic] = useState('hydrology');
+  const [topic] = useState('hydrology'); // la escena 3D muestra todas las capas; el tema solo guía la simulación secundaria
   const [searchQuery, setSearchQuery] = useState('');
   const [searching, setSearching] = useState(false);
   const [placeLabel, setPlaceLabel] = useState('Región seleccionada en el globo');
@@ -83,29 +83,30 @@ export default function OrbitalGlobe({
   const [boxKm, setBoxKm] = useState(36);
   const [startDate, setStartDate] = useState(() => formatDateOffset(62));
   const [endDate, setEndDate] = useState(() => formatDateOffset(2));
-  const [liveEvents, setLiveEvents] = useState([]);
-  const [apiOnline, setApiOnline] = useState(null);
+  const [apiMode, setApiMode] = useState(null); // null | 'local' | 'web'
 
-  // Comprueba salud de live_api.py y obtiene eventos vivos NASA EONET + USGS
+  // Comprueba si hay backend local/configurado; en producción estática (Netlify) opera en modo web directo
   useEffect(() => {
     let active = true;
-    fetch('/api/health')
-      .then((r) => (r.ok ? r.json() : null))
+    const apiBase = (import.meta.env.VITE_API_BASE_URL || '').replace(/\/$/, '');
+    if (!import.meta.env.DEV && !apiBase) {
+      setApiMode('web');
+      return () => {
+        active = false;
+      };
+    }
+    fetch(`${apiBase}/api/health`)
+      .then(async (r) => {
+        const ct = r.headers.get('content-type') || '';
+        if (!r.ok || !ct.includes('application/json')) return null;
+        return r.json();
+      })
       .then((d) => {
-        if (active) setApiOnline(Boolean(d?.ok));
+        if (active) setApiMode(d?.ok ? 'local' : 'web');
       })
       .catch(() => {
-        if (active) setApiOnline(false);
+        if (active) setApiMode('web');
       });
-
-    fetch('/api/events')
-      .then((r) => (r.ok ? r.json() : null))
-      .then((d) => {
-        if (active && Array.isArray(d?.events)) {
-          setLiveEvents(d.events);
-        }
-      })
-      .catch(() => {});
 
     return () => {
       active = false;
@@ -213,42 +214,6 @@ export default function OrbitalGlobe({
     };
   }, []);
 
-  // Pinta marcadores vivos de NASA EONET + USGS en el globo
-  useEffect(() => {
-    const map = mapRef.current;
-    if (!map) return;
-    markersRef.current.forEach((m) => m.remove());
-    markersRef.current = [];
-
-    liveEvents.forEach((ev) => {
-      const el = document.createElement('button');
-      el.type = 'button';
-      el.title = `${ev.title} (${ev.source})`;
-      el.className = `w-3.5 h-3.5 rounded-full border-2 border-white shadow-lg cursor-pointer transition-transform hover:scale-125 ${
-        ev.topic === 'hydrology'
-          ? 'bg-cyan-400'
-          : ev.topic === 'seismic'
-          ? 'bg-amber-400'
-          : 'bg-orange-500'
-      }`;
-      el.onclick = (e) => {
-        e.stopPropagation();
-        setTopic(ev.topic || 'thermal');
-        setPlaceLabel(ev.title || 'Evento activo');
-        setViewInfo((prev) => ({
-          ...prev,
-          lat: Number(ev.lat.toFixed(4)),
-          lon: Number(ev.lon.toFixed(4)),
-        }));
-        map.flyTo({ center: [ev.lon, ev.lat], zoom: 10.6, pitch: 52, duration: 1500 });
-      };
-      const marker = new maplibregl.Marker({ element: el })
-        .setLngLat([ev.lon, ev.lat])
-        .addTo(map);
-      markersRef.current.push(marker);
-    });
-  }, [liveEvents]);
-
   const handleSearch = async (e) => {
     e.preventDefault();
     const q = searchQuery.trim();
@@ -282,7 +247,7 @@ export default function OrbitalGlobe({
     if (viewInfo.spanKm < 15) {
       return {
         tone: 'amber',
-        text: `Zoom muy cercano (~${viewInfo.spanKm} km): supera resolución nativa GIBS (250–375 m) y NASA POWER (~50 km). Se usará ventana regional de ${boxKm} km.`,
+        text: `Zoom muy cercano (~${viewInfo.spanKm} km): supera resolución nativa GIBS (250–375 m) y MERRA-2 / GPM (~50 km). Se usará ventana regional de ${boxKm} km.`,
       };
     }
     if (viewInfo.spanKm > 120) {
@@ -293,7 +258,7 @@ export default function OrbitalGlobe({
     }
     return {
       tone: 'emerald',
-      text: `Escala óptima (~${boxKm} km): DEM Terrarium (~30 m) + NASA GIBS (250–375 m) + NASA POWER (MERRA-2 / GPM).`,
+      text: `Escala óptima (~${boxKm} km): DEM Terrarium (~30 m) + GIBS (250–375 m) + MERRA-2 / GPM.`,
     };
   }, [viewInfo.spanKm, boxKm]);
 
@@ -335,13 +300,13 @@ export default function OrbitalGlobe({
             </div>
             <span
               className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-mono border ${
-                apiOnline
+                apiMode
                   ? 'bg-emerald-950/70 border-emerald-500/40 text-emerald-300'
                   : 'bg-zinc-900 border-zinc-700 text-zinc-400'
               }`}
             >
               <Radio className="w-2.5 h-2.5" />
-              {apiOnline === null ? 'Conectando...' : apiOnline ? 'Live API activa' : 'Modo offline'}
+              {apiMode === null ? 'Conectando...' : apiMode === 'local' ? 'Live API activa' : 'Live Web directo'}
             </span>
           </div>
 
@@ -365,36 +330,6 @@ export default function OrbitalGlobe({
             </button>
           </form>
 
-          {/* Pregunta guiada del Challenge */}
-          <div className="space-y-1.5">
-            <div className="text-[11px] text-zinc-400 font-medium">
-              ¿Qué proceso terrestre quieres investigar?
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-1.5">
-              {TOPICS.map((t) => {
-                const Icon = t.icon;
-                const active = topic === t.id;
-                return (
-                  <button
-                    key={t.id}
-                    type="button"
-                    onClick={() => setTopic(t.id)}
-                    className={`text-left rounded-xl p-2 border transition-all ${
-                      active
-                        ? t.accent
-                        : 'bg-zinc-950/70 border-zinc-800 text-zinc-400 hover:border-zinc-600 hover:text-zinc-200'
-                    }`}
-                  >
-                    <div className="flex items-center gap-1.5 text-[11px] font-semibold leading-tight">
-                      <Icon className="w-3.5 h-3.5 shrink-0" />
-                      <span>{t.label.split(' ')[0]}</span>
-                    </div>
-                    <div className="text-[9px] font-mono opacity-80 mt-0.5 truncate">{t.vars}</div>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
         </div>
 
         {/* Panel derecho: Parámetros de ventana y botón Analizar en 3D */}
@@ -469,10 +404,9 @@ export default function OrbitalGlobe({
           <button
             type="button"
             onClick={handleAnalyzeCurrent}
-            disabled={apiOnline === false}
-            className="w-full py-2.5 rounded-xl bg-cyan-400 hover:bg-cyan-300 disabled:bg-zinc-700 disabled:text-zinc-400 text-zinc-950 font-semibold text-xs transition-colors shadow-lg"
+            className="w-full py-2.5 rounded-xl bg-cyan-400 hover:bg-cyan-300 text-zinc-950 font-semibold text-xs transition-colors shadow-lg"
           >
-            {apiOnline === false ? 'Live API apagada (usa casos demo)' : 'Analizar esta zona en 3D'}
+            Analizar esta zona en 3D
           </button>
         </div>
       </div>
@@ -494,13 +428,6 @@ export default function OrbitalGlobe({
           ))}
         </div>
 
-        {liveEvents.length > 0 && (
-          <div className="pointer-events-auto hidden md:flex items-center gap-2 bg-zinc-900/90 backdrop-blur-xl border border-zinc-700/80 rounded-xl px-3 py-1.5 text-[11px] text-zinc-300 shadow-xl">
-            <span className="w-2 h-2 rounded-full bg-orange-500" /> Incendios/EONET
-            <span className="w-2 h-2 rounded-full bg-cyan-400 ml-1" /> Tormentas/Agua
-            <span className="w-2 h-2 rounded-full bg-amber-400 ml-1" /> Sismos USGS ({liveEvents.length})
-          </div>
-        )}
       </div>
     </div>
   );

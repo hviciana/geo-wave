@@ -18,6 +18,7 @@ import {
   Sigma,
 } from 'lucide-react';
 import AnimatedStarfield from './AnimatedStarfield';
+import { GIBS_LAYERS, getGibsLayer, getDatasetDailyDates, fetchGibsFrame } from '../utils/gibsLayers';
 import {
   computeInstantImpactSummary,
   computeSpatialDetectiveMaps,
@@ -180,9 +181,16 @@ const TERRAIN_FRAGMENT_SHADER = /* glsl */ `
   uniform int uRenderMode; // 0 = hybrid 3D + SAR, 1 = optical HD, 2 = cross driver, 3 = significance p < 0.05
   uniform float uCompareMode;
   uniform float uSplitX;
-  uniform int uPhenomenonMode; // 0 = fire, 1 = earthquake, 2 = flood
+  uniform int uPhenomenonMode; // 0 = fire/thermal, 1 = earthquake, 2 = flood
+  uniform float uIsLive;
   uniform float uShowFringes;
   uniform float uTime;
+  uniform sampler2D uGibsA;
+  uniform sampler2D uGibsB;
+  uniform sampler2D uGibsPre;
+  uniform float uGibsMix;
+  uniform float uHasGibs;
+  uniform float uGibsOverlay;
 
   varying vec2 vUv;
   varying float vDef;
@@ -218,6 +226,17 @@ const TERRAIN_FRAGMENT_SHADER = /* glsl */ `
     float frontMix = max(activeFront * 0.85, borderMask * (isHybrid > 0.5 ? 0.38 : 0.55));
     outCol = mix(outCol, flameEdge, clamp(frontMix, 0.0, 0.88));
     return outCol;
+  }
+
+  vec3 composeLiveThermalLayer(vec3 satCol, float intensity, float isSea) {
+    if (isSea > 0.5) return satCol;
+    float sig = clamp(intensity, 0.0, 1.0);
+    if (sig < 0.04) return satCol;
+    vec3 warmMid = vec3(0.96, 0.62, 0.14);
+    vec3 warmHot = vec3(0.90, 0.22, 0.28);
+    vec3 tint = mix(warmMid, warmHot, smoothstep(0.25, 0.90, sig));
+    float alpha = smoothstep(0.04, 0.85, sig) * 0.42;
+    return mix(satCol, tint, alpha);
   }
 
   vec3 composeEarthquakeLayer(vec3 satCol, float def, float frontVal, float conf, float isSea, float isHybrid) {
@@ -315,7 +334,34 @@ const TERRAIN_FRAGMENT_SHADER = /* glsl */ `
     float spec = pow(max(dot(N, H), 0.0), 46.0) * (isSea * 0.34 + floodWaterSpec);
 
     vec3 surfaceCol;
-    if (isPreSide || uRenderMode == 1) {
+    if (uRenderMode == 4) {
+      // Capa real GIBS del día (timelapse diario) con pan-sharpening selectivo
+      vec4 g = isPreSide ? texture2D(uGibsPre, vUv) : mix(texture2D(uGibsA, vUv), texture2D(uGibsB, vUv), clamp(uGibsMix, 0.0, 1.0));
+      if (uHasGibs < 0.5) {
+        surfaceCol = baseOrtho;
+      } else if (uGibsOverlay > 0.5) {
+        float cov = smoothstep(0.02, 0.25, g.a);
+        float gL = dot(g.rgb, vec3(0.299, 0.587, 0.114));
+        vec3 vividOverlay = clamp(mix(vec3(gL), g.rgb, 1.25), 0.0, 1.0);
+        surfaceCol = mix(baseOrtho, vividOverlay, cov * 0.86);
+      } else {
+        float stepUv = 3.0 / 1024.0;
+        float baseLum = dot(baseOrtho, vec3(0.299, 0.587, 0.114));
+        float b1 = dot(texture2D(uBaseTex, min(vUv + vec2(stepUv, 0.0), vec2(0.999))).rgb, vec3(0.299, 0.587, 0.114));
+        float b2 = dot(texture2D(uBaseTex, max(vUv - vec2(stepUv, 0.0), vec2(0.001))).rgb, vec3(0.299, 0.587, 0.114));
+        float b3 = dot(texture2D(uBaseTex, min(vUv + vec2(0.0, stepUv), vec2(0.999))).rgb, vec3(0.299, 0.587, 0.114));
+        float b4 = dot(texture2D(uBaseTex, max(vUv - vec2(0.0, stepUv), vec2(0.001))).rgb, vec3(0.299, 0.587, 0.114));
+        float highPass = baseLum - 0.25 * (b1 + b2 + b3 + b4);
+        float gLum = dot(g.rgb, vec3(0.299, 0.587, 0.114));
+        float cloudFree = (1.0 - smoothstep(0.52, 0.76, gLum)) * uHasBaseTex;
+        surfaceCol = clamp(g.rgb + vec3(highPass * 0.75 * cloudFree), 0.0, 1.0);
+      }
+      // Realce de contraste y saturación viva sin lavar luces
+      float l2 = dot(surfaceCol, vec3(0.299, 0.587, 0.114));
+      surfaceCol = clamp(mix(vec3(l2), surfaceCol, 1.24), 0.0, 1.0);
+      light = 0.82 + 0.28 * diff;
+      spec = 0.0;
+    } else if (isPreSide || uRenderMode == 1) {
       // Lado "Antes" en comparador o modo "Satelital HD (T)": ortofoto multi-temporal pura
       surfaceCol = isPreSide ? baseOrtho : interpOpt;
     } else if (uRenderMode == 2) {
@@ -347,7 +393,9 @@ const TERRAIN_FRAGMENT_SHADER = /* glsl */ `
     } else {
       vec3 layerInput = interpOpt;
       if (uPhenomenonMode == 0) {
-        surfaceCol = composeFireLayer(layerInput, activeColor, activeFront, activeAccum, vConf, isSea, 1.0);
+        surfaceCol = uIsLive > 0.5
+          ? composeLiveThermalLayer(layerInput, activeColor, isSea)
+          : composeFireLayer(layerInput, activeColor, activeFront, activeAccum, vConf, isSea, 1.0);
       } else if (uPhenomenonMode == 1) {
         surfaceCol = composeEarthquakeLayer(layerInput, activeDef, activeFront, vConf, isSea, 1.0);
       } else {
@@ -551,6 +599,7 @@ function TerrainMeshSurface({
   showStudyBox,
   onFpsUpdate,
   isPlaying,
+  gibsState,
 }) {
   const meshRef = useRef();
   const sigRef = useRef('');
@@ -572,6 +621,8 @@ function TerrainMeshSurface({
       ? 2
       : renderMode === 'significance'
       ? 3
+      : renderMode === 'gibs'
+      ? 4
       : 0;
   const geoConfig = useMemo(() => getGeoConfig(dataset), [dataset]);
   const detectiveMaps = useMemo(() => computeSpatialDetectiveMaps(dataset), [dataset]);
@@ -596,9 +647,16 @@ function TerrainMeshSurface({
       uCompareMode: { value: 0.0 },
       uSplitX: { value: 0.5 },
       uPhenomenonMode: { value: phenomenonMode },
+      uIsLive: { value: dataset?.is_live ? 1.0 : 0.0 },
       uExaggeration: { value: exaggeration },
       uShowFringes: { value: phenomenonMode === 1 ? 1.0 : 0.0 },
       uTime: { value: 0.0 },
+      uGibsA: { value: fallbackTex },
+      uGibsB: { value: fallbackTex },
+      uGibsPre: { value: fallbackTex },
+      uGibsMix: { value: 0.0 },
+      uHasGibs: { value: 0.0 },
+      uGibsOverlay: { value: 0.0 },
     };
   }
 
@@ -609,7 +667,8 @@ function TerrainMeshSurface({
     const maxAniso = Math.min(8, gl.capabilities.getMaxAnisotropy());
     let disposed = false;
 
-    const resolveTexUrl = (p) => (p.startsWith('/') || p.startsWith('http') ? p : `/data/${p}`);
+    const resolveTexUrl = (p) =>
+      p.startsWith('/') || p.startsWith('http') || p.startsWith('data:') || p.startsWith('blob:') ? p : `/data/${p}`;
     const loadedToDispose = [];
     const baseTex = dataset.base_texture
       ? loader.load(resolveTexUrl(dataset.base_texture), () => {
@@ -725,6 +784,18 @@ function TerrainMeshSurface({
       }
     }
 
+    {
+      const u = uniformsRef.current;
+      const g = gibsState || {};
+      u.uGibsA.value = g.texA || fallbackTex;
+      u.uGibsB.value = g.texB || g.texA || fallbackTex;
+      u.uGibsPre.value = g.texPre || g.texA || fallbackTex;
+      u.uGibsMix.value = Number.isFinite(g.mix) ? g.mix : 0;
+      u.uHasGibs.value = g.texA ? 1.0 : 0.0;
+      u.uGibsOverlay.value = g.overlay ? 1.0 : 0.0;
+      u.uRenderMode.value = renderModeInt;
+    }
+
     if (!buffers || !geometry) return;
     const uIdx1 = Number.isFinite(buffers.i1) ? buffers.i1 : 0;
     const uIdx2 = Number.isFinite(buffers.i2) ? buffers.i2 : 0;
@@ -774,6 +845,7 @@ function TerrainMeshSurface({
     uniforms.uCompareMode.value = compareMode ? 1.0 : 0.0;
     uniforms.uSplitX.value = safeSplit;
     uniforms.uPhenomenonMode.value = phenomenonMode;
+    uniforms.uIsLive.value = dataset?.is_live ? 1.0 : 0.0;
     uniforms.uShowFringes.value = phenomenonMode === 1 ? 1.0 : 0.0;
   });
 
@@ -892,12 +964,95 @@ export default function TerrainViewer3D({
   activeStep,
   focusSubzone,
   isPlaying = false,
+  gibsLayerId = 'truecolor',
+  setGibsLayerId,
 }) {
   const containerRef = useRef(null);
   const [draggingSplit, setDraggingSplit] = useState(false);
   const [showLabels, setShowLabels] = useState(true);
   const [zoomCommand, setZoomCommand] = useState({ type: '', nonce: 0 });
   const [fps, setFps] = useState(60);
+
+  // ===== Timelapse diario satelital real GIBS (cargado en el navegador) =====
+  const gibsLayer = getGibsLayer(gibsLayerId);
+  const dailyDates = useMemo(() => getDatasetDailyDates(dataset, 36), [dataset]);
+  const [gibsFrames, setGibsFrames] = useState([]); // [{ date, tex } | null]
+  const [gibsInfo, setGibsInfo] = useState({ loaded: 0, empty: 0, total: 0, nativePx: 0 });
+
+  useEffect(() => {
+    const bbox = dataset?.bbox;
+    if (!Array.isArray(bbox) || bbox.length !== 4 || !dailyDates.length) {
+      setGibsFrames([]);
+      setGibsInfo({ loaded: 0, empty: 0, total: 0, nativePx: 0 });
+      return undefined;
+    }
+    const ctrl = new AbortController();
+    const created = [];
+    const frames = new Array(dailyDates.length).fill(null);
+    setGibsFrames([...frames]);
+    setGibsInfo({ loaded: 0, empty: 0, total: dailyDates.length, nativePx: 0 });
+
+    let next = 0;
+    let loaded = 0;
+    let empty = 0;
+    const worker = async () => {
+      while (!ctrl.signal.aborted && next < dailyDates.length) {
+        const idx = next++;
+        const date = dailyDates[idx];
+        const res = await fetchGibsFrame(gibsLayer, bbox, date, { outSize: 1024, signal: ctrl.signal });
+        if (ctrl.signal.aborted) return;
+        if (res?.canvas) {
+          const tex = new THREE.CanvasTexture(res.canvas);
+          tex.colorSpace = THREE.SRGBColorSpace;
+          tex.minFilter = THREE.LinearMipmapLinearFilter;
+          tex.magFilter = THREE.LinearFilter;
+          created.push(tex);
+          frames[idx] = { date, tex };
+          loaded += 1;
+          setGibsInfo((p) => ({ ...p, loaded, nativePx: res.nativePx }));
+        } else {
+          empty += 1;
+          setGibsInfo((p) => ({ ...p, empty }));
+        }
+        setGibsFrames([...frames]);
+      }
+    };
+    Promise.all([worker(), worker(), worker(), worker()]);
+
+    return () => {
+      ctrl.abort();
+      created.forEach((t) => t.dispose());
+    };
+  }, [dataset, dailyDates, gibsLayer]);
+
+  // Sincroniza el timelapse diario con la línea temporal T (0..N-1)
+  const gibsState = useMemo(() => {
+    const n = gibsFrames.length;
+    if (!n) return { texA: null, overlay: gibsLayer.overlay, date: '' };
+    const steps = Math.max(1, (dataset?.timeline?.length || 1) - 1);
+    const frac = Math.max(0, Math.min(1, (Number(tFloat) || 0) / steps));
+    const pos = frac * (n - 1);
+    const findLoaded = (start, dir) => {
+      for (let k = start; k >= 0 && k < n; k += dir) if (gibsFrames[k]) return k;
+      return -1;
+    };
+    let a = findLoaded(Math.floor(pos), -1);
+    let b = findLoaded(Math.ceil(pos), 1);
+    if (a < 0) a = b;
+    if (b < 0) b = a;
+    const first = findLoaded(0, 1);
+    if (a < 0) return { texA: null, overlay: gibsLayer.overlay, date: dailyDates[Math.round(pos)] || '' };
+    const mix = b > a ? Math.max(0, Math.min(1, (pos - a) / (b - a))) : 0;
+    return {
+      texA: gibsFrames[a].tex,
+      texB: gibsFrames[b].tex,
+      texPre: first >= 0 ? gibsFrames[first].tex : null,
+      mix,
+      overlay: gibsLayer.overlay,
+      date: mix < 0.5 ? gibsFrames[a].date : gibsFrames[b].date,
+      preDate: first >= 0 ? gibsFrames[first].date : '',
+    };
+  }, [gibsFrames, tFloat, dataset, gibsLayer, dailyDates]);
 
   const effectiveRenderMode = renderMode || (opticalMode ? 'optical' : 'hybrid');
   const selectRenderMode = (mode) => {
@@ -946,7 +1101,7 @@ export default function TerrainViewer3D({
       <Canvas
         camera={{ position: [DEFAULT_TERRAIN_CAM.x, DEFAULT_TERRAIN_CAM.y, DEFAULT_TERRAIN_CAM.z], fov: 42 }}
         dpr={[1, 2]}
-        gl={{ antialias: true, toneMapping: THREE.ACESFilmicToneMapping, toneMappingExposure: 1.06 }}
+        gl={{ antialias: true, toneMapping: THREE.NoToneMapping }}
       >
         <ambientLight intensity={0.45} />
         <directionalLight position={[10, 14, 8]} intensity={1.35} color="#f8fafc" />
@@ -966,6 +1121,7 @@ export default function TerrainViewer3D({
             showStudyBox={showStudyBox}
             onFpsUpdate={setFps}
             isPlaying={isPlaying}
+            gibsState={gibsState}
           />
         </React.Suspense>
 
@@ -979,14 +1135,45 @@ export default function TerrainViewer3D({
         />
       </Canvas>
 
+      {/* Ficha de la capa satelital real activa */}
+      {effectiveRenderMode === 'gibs' && (
+        <div className={`pointer-events-none absolute ${compareMode ? 'top-[9.75rem]' : 'top-[7.25rem]'} left-4 z-20 max-w-[330px] bg-zinc-900/90 backdrop-blur-xl border border-zinc-700/80 rounded-xl px-3 py-2 shadow-xl space-y-1.5`}>
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-xs font-semibold text-zinc-100">{gibsLayer.label}</span>
+            <span className="text-[11px] font-mono tabular-nums text-cyan-300">{gibsState.date || '—'}</span>
+          </div>
+          <p className="text-[11px] text-zinc-300 leading-snug">{gibsLayer.description}</p>
+          {gibsLayer.legend && (
+            <div>
+              <div className={`h-2 rounded-full bg-gradient-to-r ${gibsLayer.legend.grad}`} />
+              <div className="flex justify-between text-[10px] text-zinc-400 mt-0.5">
+                <span>{gibsLayer.legend.left}</span>
+                <span>{gibsLayer.legend.right}</span>
+              </div>
+            </div>
+          )}
+          <div className="text-[10px] font-mono text-zinc-400 flex flex-wrap gap-x-2">
+            <span>Satélite WMTS · {gibsLayer.resolution}</span>
+            <span>
+              Días {gibsInfo.loaded}/{gibsInfo.total}
+              {gibsInfo.empty > 0 ? ` · ${gibsInfo.empty} sin datos` : ''}
+            </span>
+            {gibsInfo.nativePx > 0 && <span>{gibsInfo.nativePx} px nativos</span>}
+          </div>
+          {gibsInfo.total > 0 && gibsInfo.loaded === 0 && gibsInfo.empty === gibsInfo.total && (
+            <div className="text-[11px] text-amber-300">Sin datos de esta capa para estas fechas en la zona.</div>
+          )}
+        </div>
+      )}
+
       {/* Cortinilla Interactiva Arrastrable Antes/Después */}
       {compareMode && (
         <div className="pointer-events-none absolute inset-0 overflow-hidden z-10">
-          <div className="absolute top-20 left-4 bg-zinc-950/90 border border-zinc-700 rounded-lg px-3 py-1 text-[11px] font-mono text-zinc-200 shadow-lg">
-            Antes · {preDate}
+          <div className={`absolute ${effectiveRenderMode === 'gibs' ? 'top-[7.25rem]' : 'top-20'} left-4 bg-zinc-950/90 border border-zinc-700 rounded-lg px-3 py-1 text-[11px] font-mono text-zinc-200 shadow-lg`}>
+            Antes · {effectiveRenderMode === 'gibs' ? gibsState.preDate || preDate : preDate}
           </div>
-          <div className="absolute top-20 right-4 bg-zinc-950/90 border border-zinc-700 rounded-lg px-3 py-1 text-[11px] font-mono text-zinc-100 shadow-lg">
-            Después · {status.interpolatedDate}
+          <div className={`absolute ${effectiveRenderMode === 'gibs' ? 'top-[7.25rem]' : 'top-20'} right-4 bg-zinc-950/90 border border-zinc-700 rounded-lg px-3 py-1 text-[11px] font-mono text-zinc-100 shadow-lg`}>
+            Después · {effectiveRenderMode === 'gibs' ? gibsState.date : status.interpolatedDate}
           </div>
 
           <div
@@ -1007,7 +1194,8 @@ export default function TerrainViewer3D({
       )}
 
       {/* Barra Superior Flotante */}
-      <div className="pointer-events-none absolute top-4 left-4 right-4 z-20 flex flex-wrap items-center justify-between gap-2.5">
+      <div className="pointer-events-none absolute top-4 left-4 right-4 z-20 flex flex-col gap-2">
+        <div className="flex flex-wrap items-center justify-between gap-2.5">
         <div className="pointer-events-auto flex items-center gap-2.5">
           <button
             onClick={onBackToGlobe}
@@ -1025,46 +1213,38 @@ export default function TerrainViewer3D({
           </div>
         </div>
 
-        {/* Selector de 4 Modos Visuales + Etiquetas + Comparador */}
+        {/* Selector de Modos Visuales + Etiquetas + Comparador */}
         <div className="pointer-events-auto flex flex-wrap items-center gap-2">
           <div className="bg-zinc-900/90 backdrop-blur-xl border border-zinc-700/80 p-1 rounded-xl flex flex-wrap items-center gap-1 shadow-xl">
             <button
+              onClick={() => selectRenderMode('gibs')}
+              title="Observación satelital real día a día (MODIS, VIIRS, GPM IMERG, SMAP, OMI, AIRS, OCO-2)"
+              className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs transition-all ${
+                effectiveRenderMode === 'gibs' ? 'bg-zinc-100 text-zinc-950 font-semibold shadow-sm' : 'text-zinc-300 hover:text-white'
+              }`}
+            >
+              <Eye className="w-3.5 h-3.5" />
+              Vista Satélite
+            </button>
+            <button
               onClick={() => selectRenderMode('hybrid')}
+              title="Modelo físico 3D sobre el relieve (frente de fuego, lámina de inundación o deformación sísmica)"
               className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs transition-all ${
                 effectiveRenderMode === 'hybrid' ? 'bg-zinc-100 text-zinc-950 font-semibold shadow-sm' : 'text-zinc-300 hover:text-white'
               }`}
             >
               <Film className="w-3.5 h-3.5" />
-              {dataset?.is_live ? 'Fusión 3D + Física' : 'Fusión 3D + SAR'}
-            </button>
-            <button
-              onClick={() => selectRenderMode('optical')}
-              className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs transition-all ${
-                effectiveRenderMode === 'optical' ? 'bg-zinc-100 text-zinc-950 font-semibold shadow-sm' : 'text-zinc-300 hover:text-white'
-              }`}
-            >
-              <Eye className="w-3.5 h-3.5" />
-              Satelital HD (T)
+              Simulación
             </button>
             <button
               onClick={() => selectRenderMode('driver')}
-              title="Muestra el mapa espacial de la variable secundaria acoplada (MODIS térmica, esfuerzo USGS o lluvia GPM)"
+              title="Mapa espacial estimado de la variable secundaria (térmica, esfuerzo o lluvia)"
               className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs transition-all ${
                 effectiveRenderMode === 'driver' ? 'bg-zinc-100 text-zinc-950 font-semibold shadow-sm' : 'text-zinc-300 hover:text-white'
               }`}
             >
               <Activity className="w-3.5 h-3.5" />
               Variable Cruzada
-            </button>
-            <button
-              onClick={() => selectRenderMode('significance')}
-              title="Resalta solo zonas con tendencia estadísticamente significativa (p < 0.05) sobre pasadas reales"
-              className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs transition-all ${
-                effectiveRenderMode === 'significance' ? 'bg-zinc-100 text-zinc-950 font-semibold shadow-sm' : 'text-zinc-300 hover:text-white'
-              }`}
-            >
-              <Sigma className="w-3.5 h-3.5" />
-              Significancia p&lt;0.05
             </button>
           </div>
 
@@ -1092,6 +1272,31 @@ export default function TerrainViewer3D({
             {compareMode ? 'Comparador activo' : 'Antes/Después'}
           </button>
         </div>
+        </div>
+
+        {/* Píldoras rápidas de todas las capas satelitales reales GIBS */}
+        {effectiveRenderMode === 'gibs' && (
+          <div className="pointer-events-auto flex items-center gap-1.5 overflow-x-auto bg-zinc-900/90 backdrop-blur-xl border border-zinc-700/80 rounded-xl px-2 py-1.5 shadow-xl">
+            {GIBS_LAYERS.map((l) => {
+              const active = gibsLayer.id === l.id;
+              return (
+                <button
+                  key={l.id}
+                  type="button"
+                  onClick={() => setGibsLayerId?.(l.id)}
+                  title={`${l.label} (${l.resolution})`}
+                  className={`px-2.5 py-1 rounded-lg text-[11px] whitespace-nowrap transition-all border ${
+                    active
+                      ? 'bg-cyan-400 text-zinc-950 border-cyan-300 font-semibold shadow-sm'
+                      : 'bg-zinc-950/75 text-zinc-300 border-zinc-800 hover:border-zinc-600 hover:text-white'
+                  }`}
+                >
+                  {l.short}
+                </button>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       {/* Botones de zoom de cámara (+, -, Restablecer) */}
@@ -1127,8 +1332,8 @@ export default function TerrainViewer3D({
             {fps} FPS
           </span>
           <div className="text-[11px] font-mono tabular-nums text-zinc-200 flex flex-wrap items-center gap-2">
-            <span className="text-zinc-300">{status.interpolatedDate}</span>
-            {impactSummary && (
+            <span className="text-zinc-300">{effectiveRenderMode === 'gibs' && gibsState.date ? gibsState.date : status.interpolatedDate}</span>
+            {impactSummary && effectiveRenderMode !== 'gibs' && (
               <>
                 <span className="text-zinc-600">·</span>
                 <span className="text-emerald-300 font-semibold">
