@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Compass, Loader2 } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import OrbitalGlobe from './components/OrbitalGlobe';
 import TerrainViewer3D from './components/TerrainViewer3D';
 import TimelineControl from './components/TimelineControl';
@@ -384,9 +384,13 @@ function AppContent() {
       {/* Cabecera Superior Minimalista */}
       <header className="min-h-[52px] bg-zinc-900/95 backdrop-blur-xl border-b border-zinc-800 px-4 py-2 flex flex-wrap items-center justify-between gap-2.5 shrink-0">
         <div className="flex items-center gap-3.5">
-          <div className="flex items-center gap-2 text-zinc-100 text-xs font-semibold tracking-tight">
-            <Compass className="w-4 h-4 text-emerald-300" />
-            <span>Earth System Trend Detective</span>
+          <div className="flex items-center gap-2.5 text-zinc-100 text-xs font-semibold tracking-tight">
+            <img
+              src="/assets/geo-wave-logo.png"
+              alt="GEO-WAVE"
+              className="w-7 h-7 rounded-lg bg-white/95 p-0.5 object-contain shadow-sm shrink-0"
+            />
+            <span className="tracking-wide font-bold">GEO-WAVE</span>
             <span className="hidden sm:inline text-zinc-400 font-mono font-normal text-[11px]">· Observación Satelital 3D</span>
           </div>
 

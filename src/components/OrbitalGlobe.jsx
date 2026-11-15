@@ -6,7 +6,6 @@ import {
   Calendar,
   Compass,
   Flame,
-  Globe2,
   Loader2,
   MapPin,
   Radio,
@@ -295,8 +294,12 @@ export default function OrbitalGlobe({
         <div className="pointer-events-auto bg-zinc-900/90 backdrop-blur-xl border border-zinc-700/80 rounded-2xl px-4 py-3 shadow-2xl max-w-md space-y-2.5">
           <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-2 text-zinc-100 text-xs font-semibold">
-              <Globe2 className="w-4 h-4 text-cyan-300" />
-              <span>Earth System Trend Detective · Globo 3D</span>
+              <img
+                src="/assets/geo-wave-logo.png"
+                alt="GEO-WAVE"
+                className="w-7 h-7 rounded-lg bg-white/95 p-0.5 object-contain shadow-sm shrink-0"
+              />
+              <span><strong className="tracking-wide">GEO-WAVE</strong> · Globo 3D</span>
             </div>
             <span
               className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-mono border ${
