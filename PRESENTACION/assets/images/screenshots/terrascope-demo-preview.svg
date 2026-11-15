@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 450" width="100%" height="100%">
+    <!-- Mockup of the CesiumJS 3D Globe with UI HUD -->
+    <rect width="800" height="450" fill="#050914"/>
+    <!-- Top HUD of Demo -->
+    <rect x="0" y="0" width="800" height="44" fill="#0a1425" stroke="#318bff" stroke-width="1"/>
+    <text x="24" y="28" fill="#f4f7fc" font-family="Space Grotesk" font-weight="bold" font-size="16">TerraScope 3D Engine · CesiumJS</text>
+    <rect x="680" y="10" width="96" height="24" rx="4" fill="#318bff"/>
+    <text x="696" y="26" fill="#fff" font-family="Space Grotesk" font-size="11" font-weight="bold">+ NEW STUDY</text>
+    
+    <!-- 3D Globe Centered on Spain / Mediterranean -->
+    <circle cx="400" cy="245" r="160" fill="#0d244a" stroke="#32d5e6" stroke-width="2"/>
+    <ellipse cx="400" cy="245" rx="150" ry="70" fill="none" stroke="#224a85" stroke-width="1"/>
+    <ellipse cx="400" cy="245" rx="70" ry="150" fill="none" stroke="#224a85" stroke-width="1"/>
+
+    <!-- Highlighted Regional Bounding Box on Globe -->
+    <rect x="360" y="210" width="70" height="55" fill="rgba(50, 213, 230, 0.25)" stroke="#32d5e6" stroke-width="2" stroke-dasharray="4,2"/>
+    <text x="362" y="200" fill="#32d5e6" font-family="JetBrains Mono" font-size="10">BBOX: [39.4°N, 0.3°W]</text>
+
+    <!-- Side Tools Panel -->
+    <rect x="24" y="64" width="220" height="360" rx="8" fill="rgba(10, 20, 37, 0.85)" stroke="#1e3a66" stroke-width="1"/>
+    <text x="40" y="96" fill="#f4f7fc" font-family="Space Grotesk" font-weight="bold" font-size="13">Active Layer Configuration</text>
+    <rect x="40" y="115" width="188" height="32" rx="4" fill="#142847" stroke="#318bff"/>
+    <text x="50" y="135" fill="#32d5e6" font-family="Space Grotesk" font-size="11">✓ Copernicus DEM 30m</text>
+
+    <rect x="40" y="155" width="188" height="32" rx="4" fill="#142847" stroke="#32d5e6"/>
+    <text x="50" y="175" fill="#32d5e6" font-family="Space Grotesk" font-size="11">✓ Sentinel-1 Backscatter Δ</text>
+
+    <rect x="40" y="195" width="188" height="32" rx="4" fill="#142847" stroke="#f59e0b"/>
+    <text x="50" y="215" fill="#f59e0b" font-family="Space Grotesk" font-size="11">✓ Water Mask Threshold</text>
+
+    <!-- Bottom Timeline Bar in Demo Mockup -->
+    <rect x="264" y="380" width="512" height="44" rx="6" fill="rgba(10, 20, 37, 0.9)" stroke="#1e3a66"/>
+    <line x1="290" y1="402" x2="740" y2="402" stroke="#5e718d" stroke-width="3"/>
+    <circle cx="340" cy="402" r="6" fill="#318bff"/>
+    <text x="315" y="420" fill="#98a8bd" font-family="JetBrains Mono" font-size="9">19 OCT</text>
+    <circle cx="560" cy="402" r="8" fill="#32d5e6" stroke="#fff" stroke-width="2"/>
+    <text x="540" y="420" fill="#32d5e6" font-family="JetBrains Mono" font-weight="bold" font-size="9">31 OCT (PEAK)</text>
+    <circle cx="700" cy="402" r="6" fill="#318bff"/>
+    <text x="685" y="420" fill="#98a8bd" font-family="JetBrains Mono" font-size="9">05 NOV</text>
+</svg>

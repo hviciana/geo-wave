@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 450 120" width="100%" height="100%">
+    <defs>
+        <linearGradient id="logoGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stop-color="#318bff"/>
+            <stop offset="100%" stop-color="#32d5e6"/>
+        </linearGradient>
+    </defs>
+    <!-- Logo Icon -->
+    <circle cx="60" cy="60" r="45" fill="none" stroke="#318bff" stroke-width="2.5" stroke-dasharray="6,4"/>
+    <ellipse cx="60" cy="60" rx="35" ry="14" fill="none" stroke="#32d5e6" stroke-width="2" transform="rotate(-30 60 60)"/>
+    <circle cx="60" cy="60" r="20" fill="url(#logoGrad)"/>
+    
+    <!-- Title Text -->
+    <text x="125" y="65" fill="#f4f7fc" font-family="Space Grotesk" font-weight="700" font-size="40" letter-spacing="-1">TerraScope</text>
+    <rect x="365" y="38" width="55" height="24" rx="4" fill="rgba(50, 213, 230, 0.15)" stroke="#32d5e6" stroke-width="1.5"/>
+    <text x="375" y="54" fill="#32d5e6" font-family="JetBrains Mono" font-weight="700" font-size="12">2026</text>
+    
+    <!-- Subtitle -->
+    <text x="128" y="90" fill="#98a8bd" font-family="Inter" font-weight="500" font-size="14" letter-spacing="0.5">NASA SPACE APPS CHALLENGE · MÁLAGA</text>
+</svg>

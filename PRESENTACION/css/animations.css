@@ -1,0 +1,179 @@
+/* ==========================================================================
+   GeoWave Presentation - Keyframes & Cinematic Transitions
+   NASA Space Apps Challenge Málaga 2026
+   ========================================================================== */
+
+/* ==========================================================================
+   Keyframe Definitions
+   ========================================================================== */
+
+/* Subtle Radar Sweep Effect */
+@keyframes radarScan {
+    from {
+        transform: rotate(0deg);
+    }
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* Orbital Rings Continuous Rotation */
+@keyframes rotateOrbit {
+    from {
+        transform: rotate(0deg);
+    }
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* Pulsing Status Dot */
+@keyframes pulseGlow {
+    0%, 100% {
+        opacity: 1;
+        transform: scale(1);
+        box-shadow: 0 0 8px var(--secondary);
+    }
+    50% {
+        opacity: 0.45;
+        transform: scale(0.85);
+        box-shadow: 0 0 2px var(--secondary);
+    }
+}
+
+/* Subtle Floating Effect */
+@keyframes floatGentle {
+    0%, 100% {
+        transform: translateY(0);
+    }
+    50% {
+        transform: translateY(-6px);
+    }
+}
+
+/* Holographic Shimmer */
+@keyframes shimmerGlow {
+    0% {
+        background-position: -200% 0;
+    }
+    100% {
+        background-position: 200% 0;
+    }
+}
+
+/* Scanline Sweeper */
+@keyframes scanlineAnim {
+    0% {
+        top: -100%;
+    }
+    100% {
+        top: 200%;
+    }
+}
+
+/* ==========================================================================
+   Slide Content Staggered Animations
+   When a slide becomes active (.slide.active), child elements with .animate-in
+   reveal with smooth staggered timing.
+   ========================================================================== */
+
+.slide .animate-in {
+    opacity: 0;
+    transform: translateY(18px);
+    transition: opacity 550ms cubic-bezier(0.16, 1, 0.3, 1),
+                transform 550ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.slide.active .animate-in,
+.slide.in-view .animate-in {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+/* Stagger Delays */
+.slide.active .delay-1, .slide.in-view .delay-1 { transition-delay: 80ms; }
+.slide.active .delay-2, .slide.in-view .delay-2 { transition-delay: 160ms; }
+.slide.active .delay-3, .slide.in-view .delay-3 { transition-delay: 240ms; }
+.slide.active .delay-4, .slide.in-view .delay-4 { transition-delay: 320ms; }
+.slide.active .delay-5, .slide.in-view .delay-5 { transition-delay: 400ms; }
+.slide.active .delay-6, .slide.in-view .delay-6 { transition-delay: 480ms; }
+
+/* Slide Transition Directions (Next vs Previous) */
+.slide.slide-out-left {
+    opacity: 0;
+    transform: translateX(-40px) scale(0.96);
+}
+
+.slide.slide-out-right {
+    opacity: 0;
+    transform: translateX(40px) scale(0.96);
+}
+
+/* ==========================================================================
+   Visual Element Enhancements
+   ========================================================================== */
+.glow-on-hover {
+    transition: var(--transition-fast);
+}
+
+.glow-on-hover:hover {
+    box-shadow: 0 0 25px var(--secondary-glow);
+}
+
+.pulse-animation {
+    animation: pulseGlow 2.5s infinite ease-in-out;
+}
+
+.float-animation {
+    animation: floatGentle 5s infinite ease-in-out;
+}
+
+/* Scanline effect for HUD elements */
+.hud-scanline {
+    position: relative;
+    overflow: hidden;
+}
+
+.hud-scanline::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(180deg, transparent 0%, rgba(50, 213, 230, 0.05) 50%, transparent 100%);
+    pointer-events: none;
+    animation: scanlineAnim 6s linear infinite;
+}
+
+/* ==========================================================================
+   Accessibility: Reduced Motion Preference
+   NASA Space Apps accessibility compliance
+   ========================================================================== */
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+    }
+
+    .orbital-ring,
+    .radar-sweep-line,
+    .mission-tag .pulse-dot,
+    .layer-stack-container {
+        animation: none !important;
+        transform: none !important;
+    }
+
+    .slide {
+        transition: opacity 150ms ease !important;
+        transform: none !important;
+    }
+
+    .slide .animate-in {
+        opacity: 1 !important;
+        transform: none !important;
+        transition: none !important;
+    }
+}

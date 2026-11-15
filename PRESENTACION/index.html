@@ -1,0 +1,1072 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+
+    <!-- SEO & Project Metadata -->
+    <title>GeoWave — Visualización 3D y Predicción de Catástrofes | NASA Space Apps 2026</title>
+    <meta name="description" content="Plataforma web colaborativa y predictiva que transforma datos de observación satelital NISAR en experiencias 3D y red social de conocimiento. NASA Space Apps Challenge Málaga 2026.">
+    <meta name="keywords" content="NASA Space Apps, GeoWave, DANA Valencia, NISAR, SAR, InSAR, Inundaciones, Predicción Catástrofes, 3D GIS, Teledetección">
+    <meta name="author" content="GeoWave Team">
+
+    <!-- Open Graph & Social Cards -->
+    <meta property="og:title" content="GeoWave — Haciendo Visibles los Cambios en la Tierra">
+    <meta property="og:description" content="Transformamos telemetría satelital en experiencias 3D interactivas, comunidad de conocimiento y modelos predictivos ante catástrofes.">
+    <meta property="og:type" content="website">
+    <meta name="theme-color" content="#0D131F">
+
+    <!-- Stylesheets -->
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/slides.css">
+    <link rel="stylesheet" href="css/animations.css">
+
+    <!-- Favicon -->
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%232DD4BF'><circle cx='12' cy='12' r='10'/></svg>">
+</head>
+<body>
+
+    <!-- Deep Space Procedural Starfield Canvas -->
+    <canvas id="starfield-canvas"></canvas>
+
+    <!-- Technical Cartography Grid Overlay -->
+    <div class="grid-overlay"></div>
+
+    <!-- ======================================================================
+         TOP HUD HEADER BAR
+         ====================================================================== -->
+    <header class="top-header">
+        <a href="#slide-1" class="brand-wrapper" title="GeoWave Cover">
+            <div class="brand-icon-wrapper">
+                <!-- Satellite / Globe SVG Vector Icon -->
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
+                    <path d="M2 12h20"></path>
+                </svg>
+            </div>
+            <div class="brand-text-block">
+                <span class="brand-title">GeoWave <span class="brand-badge">2026</span></span>
+                <span class="brand-subtitle">NASA Space Apps Challenge · Málaga</span>
+            </div>
+        </a>
+
+        <div class="header-center-info">
+            <div class="mission-tag">
+                <span class="pulse-dot"></span>
+                <span>SIMULACIÓN DE PIPELINE NISAR L/S-SAR</span>
+            </div>
+        </div>
+
+        <div class="header-actions">
+            <!-- Language Switcher Button (ES / EN) -->
+            <button class="lang-toggle-btn" id="lang-toggle-btn" title="Cambiar idioma / Switch language (L)" aria-label="Cambiar idioma">
+                <span class="lang-code active" data-lang="es">ES</span>
+                <span class="lang-divider">/</span>
+                <span class="lang-code" data-lang="en">EN</span>
+            </button>
+
+            <!-- Shortcut Help Button -->
+            <button class="icon-btn" id="help-btn" title="Atajos de teclado (? o H)" aria-label="Atajos de teclado">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
+                    <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                </svg>
+            </button>
+
+            <!-- Export to PDF Button -->
+            <button class="icon-btn" id="export-pdf-btn" title="Exportar Presentación a PDF (P)" aria-label="Exportar a PDF">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M6 9V2h12v7"></path>
+                    <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path>
+                    <rect x="6" y="14" width="12" height="8"></rect>
+                </svg>
+            </button>
+
+            <!-- Fullscreen Button -->
+            <button class="icon-btn" id="fullscreen-btn" title="Pantalla Completa (F)" aria-label="Pantalla Completa">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"></path>
+                </svg>
+            </button>
+
+            <!-- Live Project Demo CTA Button -->
+            <a href="#" class="cta-btn-sm bind-demo-url" id="header-demo-btn">
+                <span>Ver Demo</span>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="7" y1="17" x2="17" y2="7"></line>
+                    <polyline points="7 7 17 7 17 17"></polyline>
+                </svg>
+            </a>
+        </div>
+    </header>
+
+    <!-- ======================================================================
+         PRESENTATION CONTAINER (7 SLIDES MAXIMUM - SCROLLABLE & PRINTABLE)
+         ====================================================================== -->
+    <main id="presentation-container">
+
+        <!-- ==================================================================
+             SLIDE 01: EL IMPACTO — CATÁSTROFES, DATOS, PERO NO LOS VEMOS
+             ================================================================== -->
+        <section class="slide active in-view" id="slide-01">
+            <div class="slide-content-wrap slide-01-layout">
+
+                <!-- Top: Headline Block -->
+                <div class="impact-headline-block animate-in delay-1">
+                    <div class="impact-eyebrow">
+                        <span class="pulse-dot"></span>
+                        <span>DIAPOSITIVA 01 · EL IMPACTO</span>
+                    </div>
+                    <h1 class="impact-main-title animate-in delay-2">
+                        Cada año ocurren más catástrofes ambientales.<br>
+                        Cada año obtenemos más datos del planeta a través de satélite.
+                    </h1>
+                    <p class="impact-reveal-line animate-in delay-3">
+                        <span class="reveal-but">PERO</span>
+                        <span class="reveal-statement">NO LOS VEMOS.</span>
+                    </p>
+                </div>
+
+                <!-- Middle: 4-Disaster Mosaic -->
+                <div class="disaster-mosaic animate-in delay-4">
+
+                    <!-- Card 1: Inundación -->
+                    <div class="disaster-card disaster-flood">
+                        <div class="disaster-card-visual">
+                            <!-- SVG: Flood / Inundation -->
+                            <svg viewBox="0 0 320 200" xmlns="http://www.w3.org/2000/svg" width="100%" height="100%">
+                                <defs>
+                                    <linearGradient id="floodSky" x1="0%" y1="0%" x2="0%" y2="100%">
+                                        <stop offset="0%" stop-color="#1a2d4a"/>
+                                        <stop offset="100%" stop-color="#0d1b2e"/>
+                                    </linearGradient>
+                                    <linearGradient id="waterGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+                                        <stop offset="0%" stop-color="#2DD4BF" stop-opacity="0.9"/>
+                                        <stop offset="100%" stop-color="#0d6e63" stop-opacity="0.95"/>
+                                    </linearGradient>
+                                </defs>
+                                <rect width="320" height="200" fill="url(#floodSky)"/>
+                                <!-- Rain streaks -->
+                                <line x1="30" y1="0" x2="20" y2="60" stroke="#94A3B8" stroke-width="1" opacity="0.4"/>
+                                <line x1="80" y1="0" x2="70" y2="55" stroke="#94A3B8" stroke-width="1" opacity="0.3"/>
+                                <line x1="130" y1="0" x2="120" y2="65" stroke="#94A3B8" stroke-width="1" opacity="0.4"/>
+                                <line x1="180" y1="0" x2="170" y2="60" stroke="#94A3B8" stroke-width="1" opacity="0.3"/>
+                                <line x1="230" y1="0" x2="220" y2="58" stroke="#94A3B8" stroke-width="1" opacity="0.4"/>
+                                <line x1="280" y1="0" x2="270" y2="62" stroke="#94A3B8" stroke-width="1" opacity="0.3"/>
+                                <line x1="55" y1="0" x2="45" y2="50" stroke="#94A3B8" stroke-width="1" opacity="0.25"/>
+                                <line x1="155" y1="0" x2="145" y2="52" stroke="#94A3B8" stroke-width="1" opacity="0.25"/>
+                                <line x1="255" y1="0" x2="245" y2="54" stroke="#94A3B8" stroke-width="1" opacity="0.25"/>
+                                <!-- Buildings partially submerged -->
+                                <rect x="20" y="80" width="35" height="70" fill="#1e3550" rx="2"/>
+                                <rect x="22" y="88" width="10" height="10" fill="#2DD4BF" opacity="0.3" rx="1"/>
+                                <rect x="36" y="88" width="10" height="10" fill="#2DD4BF" opacity="0.3" rx="1"/>
+                                <rect x="22" y="104" width="10" height="10" fill="#2DD4BF" opacity="0.2" rx="1"/>
+                                <rect x="36" y="104" width="10" height="10" fill="#2DD4BF" opacity="0.2" rx="1"/>
+                                <rect x="70" y="70" width="45" height="80" fill="#182d44" rx="2"/>
+                                <rect x="73" y="78" width="12" height="12" fill="#2DD4BF" opacity="0.25" rx="1"/>
+                                <rect x="90" y="78" width="12" height="12" fill="#2DD4BF" opacity="0.25" rx="1"/>
+                                <rect x="73" y="96" width="12" height="12" fill="#2DD4BF" opacity="0.15" rx="1"/>
+                                <rect x="140" y="60" width="50" height="90" fill="#1e3550" rx="2"/>
+                                <rect x="145" y="68" width="14" height="14" fill="#F59E0B" opacity="0.35" rx="1"/>
+                                <rect x="165" y="68" width="14" height="14" fill="#F59E0B" opacity="0.25" rx="1"/>
+                                <rect x="210" y="85" width="40" height="65" fill="#182d44" rx="2"/>
+                                <rect x="265" y="75" width="45" height="75" fill="#1a2f4a" rx="2"/>
+                                <!-- Flooded street / water surface -->
+                                <path d="M 0,145 Q 80,135 160,145 T 320,140 L 320,200 L 0,200 Z" fill="url(#waterGrad)"/>
+                                <!-- Water ripples -->
+                                <ellipse cx="80" cy="155" rx="30" ry="6" fill="none" stroke="#2DD4BF" stroke-width="1" opacity="0.5"/>
+                                <ellipse cx="200" cy="162" rx="25" ry="5" fill="none" stroke="#2DD4BF" stroke-width="1" opacity="0.4"/>
+                                <ellipse cx="290" cy="155" rx="18" ry="4" fill="none" stroke="#2DD4BF" stroke-width="1" opacity="0.4"/>
+                                <!-- Floating debris suggestion -->
+                                <rect x="100" y="148" width="20" height="6" fill="#E06D53" rx="1" opacity="0.6"/>
+                                <rect x="230" y="152" width="15" height="5" fill="#94A3B8" rx="1" opacity="0.5"/>
+                                <!-- SAR data overlay grid suggestion -->
+                                <rect x="0" y="0" width="320" height="200" fill="none" stroke="#2DD4BF" stroke-width="0.5" opacity="0.08"/>
+                            </svg>
+                        </div>
+                        <div class="disaster-card-label">
+                            <span class="disaster-type-dot" style="background:#2DD4BF"></span>
+                            <span class="disaster-type-name">Inundación</span>
+                            <span class="disaster-example">Valencia, 2024</span>
+                        </div>
+                    </div>
+
+                    <!-- Card 2: Volcán -->
+                    <div class="disaster-card disaster-volcano">
+                        <div class="disaster-card-visual">
+                            <!-- SVG: Volcanic eruption -->
+                            <svg viewBox="0 0 320 200" xmlns="http://www.w3.org/2000/svg" width="100%" height="100%">
+                                <defs>
+                                    <linearGradient id="volSky" x1="0%" y1="0%" x2="0%" y2="100%">
+                                        <stop offset="0%" stop-color="#1a0d0d"/>
+                                        <stop offset="100%" stop-color="#2d1206"/>
+                                    </linearGradient>
+                                    <radialGradient id="lavaGlow" cx="50%" cy="80%" r="60%">
+                                        <stop offset="0%" stop-color="#E06D53" stop-opacity="0.5"/>
+                                        <stop offset="100%" stop-color="#1a0d0d" stop-opacity="0"/>
+                                    </radialGradient>
+                                    <linearGradient id="lavaFlow" x1="0%" y1="0%" x2="0%" y2="100%">
+                                        <stop offset="0%" stop-color="#E06D53"/>
+                                        <stop offset="60%" stop-color="#b04a35"/>
+                                        <stop offset="100%" stop-color="#6b2318"/>
+                                    </linearGradient>
+                                </defs>
+                                <rect width="320" height="200" fill="url(#volSky)"/>
+                                <rect width="320" height="200" fill="url(#lavaGlow)"/>
+                                <!-- Ash cloud -->
+                                <ellipse cx="160" cy="40" rx="80" ry="35" fill="#2d1f1a" opacity="0.9"/>
+                                <ellipse cx="130" cy="45" rx="55" ry="28" fill="#3d2820" opacity="0.8"/>
+                                <ellipse cx="195" cy="38" rx="50" ry="25" fill="#332218" opacity="0.75"/>
+                                <ellipse cx="160" cy="55" rx="40" ry="20" fill="#1a1008" opacity="0.85"/>
+                                <!-- Ash particles -->
+                                <circle cx="100" cy="25" r="3" fill="#94A3B8" opacity="0.4"/>
+                                <circle cx="200" cy="20" r="2" fill="#94A3B8" opacity="0.3"/>
+                                <circle cx="140" cy="15" r="2" fill="#94A3B8" opacity="0.35"/>
+                                <circle cx="230" cy="35" r="3" fill="#94A3B8" opacity="0.3"/>
+                                <circle cx="80" cy="35" r="2" fill="#94A3B8" opacity="0.25"/>
+                                <!-- Eruption column -->
+                                <path d="M 145,80 Q 150,50 160,30 Q 170,50 175,80 Z" fill="#E06D53" opacity="0.8"/>
+                                <path d="M 148,80 Q 155,55 160,38 Q 165,55 172,80 Z" fill="#F59E0B" opacity="0.6"/>
+                                <!-- Volcano cone -->
+                                <path d="M 0,200 L 80,100 L 120,130 L 160,80 L 200,130 L 240,100 L 320,200 Z" fill="#2d1810"/>
+                                <path d="M 100,200 L 130,120 L 160,80 L 190,120 L 220,200 Z" fill="#3d2215"/>
+                                <!-- Lava flows -->
+                                <path d="M 155,85 Q 140,120 120,150 T 90,200 L 110,200 Q 130,165 150,135 T 165,90 Z" fill="url(#lavaFlow)" opacity="0.85"/>
+                                <path d="M 165,85 Q 180,120 200,155 T 230,200 L 210,200 Q 185,165 170,135 T 160,90 Z" fill="url(#lavaFlow)" opacity="0.75"/>
+                                <!-- Lava glow on ground -->
+                                <ellipse cx="90" cy="195" rx="30" ry="8" fill="#E06D53" opacity="0.4"/>
+                                <ellipse cx="230" cy="195" rx="25" ry="7" fill="#E06D53" opacity="0.35"/>
+                            </svg>
+                        </div>
+                        <div class="disaster-card-label">
+                            <span class="disaster-type-dot" style="background:#E06D53"></span>
+                            <span class="disaster-type-name">Erupción Volcánica</span>
+                            <span class="disaster-example">La Palma, 2021</span>
+                        </div>
+                    </div>
+
+                    <!-- Card 3: Terremoto -->
+                    <div class="disaster-card disaster-quake">
+                        <div class="disaster-card-visual">
+                            <!-- SVG: Earthquake / Ground deformation -->
+                            <svg viewBox="0 0 320 200" xmlns="http://www.w3.org/2000/svg" width="100%" height="100%">
+                                <defs>
+                                    <linearGradient id="quakeSky" x1="0%" y1="0%" x2="0%" y2="100%">
+                                        <stop offset="0%" stop-color="#16110a"/>
+                                        <stop offset="100%" stop-color="#201506"/>
+                                    </linearGradient>
+                                    <linearGradient id="groundGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+                                        <stop offset="0%" stop-color="#3d2d1a"/>
+                                        <stop offset="100%" stop-color="#1a1206"/>
+                                    </linearGradient>
+                                </defs>
+                                <rect width="320" height="200" fill="url(#quakeSky)"/>
+                                <!-- InSAR interference fringes (earthquake signature) -->
+                                <ellipse cx="160" cy="110" rx="130" ry="75" fill="none" stroke="#F59E0B" stroke-width="1.5" opacity="0.25"/>
+                                <ellipse cx="160" cy="110" rx="105" ry="60" fill="none" stroke="#F59E0B" stroke-width="1.5" opacity="0.3"/>
+                                <ellipse cx="160" cy="110" rx="80" ry="46" fill="none" stroke="#E06D53" stroke-width="1.5" opacity="0.4"/>
+                                <ellipse cx="160" cy="110" rx="58" ry="34" fill="none" stroke="#E06D53" stroke-width="2" opacity="0.5"/>
+                                <ellipse cx="160" cy="110" rx="38" ry="22" fill="none" stroke="#F59E0B" stroke-width="2" opacity="0.6"/>
+                                <ellipse cx="160" cy="110" rx="20" ry="12" fill="#F59E0B" opacity="0.15"/>
+                                <!-- Ground fault line -->
+                                <path d="M 0,120 L 60,115 L 90,125 L 130,110 L 160,118 L 200,105 L 240,118 L 280,112 L 320,120" fill="none" stroke="#E06D53" stroke-width="3"/>
+                                <!-- Ground displacement -->
+                                <rect x="0" y="122" width="145" height="78" fill="url(#groundGrad)"/>
+                                <rect x="155" y="118" width="165" height="82" fill="#2d2010"/>
+                                <!-- Fault offset indicator -->
+                                <line x1="150" y1="100" x2="150" y2="200" stroke="#E06D53" stroke-width="2" stroke-dasharray="6,3" opacity="0.7"/>
+                                <text x="80" y="140" fill="#F59E0B" font-size="9" font-family="JetBrains Mono" opacity="0.8">BLOQUE A</text>
+                                <text x="175" y="135" fill="#F59E0B" font-size="9" font-family="JetBrains Mono" opacity="0.8">BLOQUE B</text>
+                                <!-- Displacement arrow -->
+                                <path d="M 115,160 L 140,155" stroke="#E06D53" stroke-width="2" marker-end="url(#arrow)"/>
+                                <text x="62" y="175" fill="#E06D53" font-size="8" font-family="JetBrains Mono" opacity="0.7">Δ 5.5 m InSAR</text>
+                                <!-- Rubble suggestion -->
+                                <rect x="50" y="118" width="8" height="6" fill="#94A3B8" rx="1" opacity="0.5"/>
+                                <rect x="62" y="119" width="6" height="4" fill="#94A3B8" rx="1" opacity="0.4"/>
+                                <rect x="240" y="115" width="9" height="6" fill="#94A3B8" rx="1" opacity="0.4"/>
+                                <rect x="253" y="116" width="6" height="5" fill="#94A3B8" rx="1" opacity="0.35"/>
+                                <!-- Seismic wave -->
+                                <path d="M 10,80 L 50,80 L 60,60 L 70,100 L 80,65 L 90,90 L 100,80 L 310,80" fill="none" stroke="#F59E0B" stroke-width="1.5" opacity="0.5"/>
+                            </svg>
+                        </div>
+                        <div class="disaster-card-label">
+                            <span class="disaster-type-dot" style="background:#F59E0B"></span>
+                            <span class="disaster-type-name">Terremoto</span>
+                            <span class="disaster-example">Turquía, 2023</span>
+                        </div>
+                    </div>
+
+                    <!-- Card 4: Huracán -->
+                    <div class="disaster-card disaster-hurricane">
+                        <div class="disaster-card-visual">
+                            <!-- SVG: Hurricane / Storm from satellite view -->
+                            <svg viewBox="0 0 320 200" xmlns="http://www.w3.org/2000/svg" width="100%" height="100%">
+                                <defs>
+                                    <radialGradient id="eyeWall" cx="50%" cy="50%" r="50%">
+                                        <stop offset="0%" stop-color="#161E2E" stop-opacity="1"/>
+                                        <stop offset="30%" stop-color="#1E293B" stop-opacity="0.9"/>
+                                        <stop offset="60%" stop-color="#38BDF8" stop-opacity="0.3"/>
+                                        <stop offset="100%" stop-color="#0D131F" stop-opacity="0.6"/>
+                                    </radialGradient>
+                                    <linearGradient id="hurricaneBg" x1="0%" y1="0%" x2="100%" y2="100%">
+                                        <stop offset="0%" stop-color="#0a1520"/>
+                                        <stop offset="100%" stop-color="#0d1f2d"/>
+                                    </linearGradient>
+                                </defs>
+                                <rect width="320" height="200" fill="url(#hurricaneBg)"/>
+                                <!-- Spiral bands (satellite top view) -->
+                                <path d="M 160,100 Q 220,40 270,80 Q 310,120 280,160 Q 240,200 180,185 Q 110,170 80,120 Q 60,80 100,45 Q 140,15 180,40 Q 220,65 215,100" fill="none" stroke="#94A3B8" stroke-width="12" opacity="0.18"/>
+                                <path d="M 160,100 Q 215,50 255,85 Q 290,120 265,155 Q 235,188 185,178 Q 125,165 95,118 Q 78,85 112,55 Q 148,28 183,50 Q 213,72 210,100" fill="none" stroke="#94A3B8" stroke-width="8" opacity="0.25"/>
+                                <path d="M 160,100 Q 210,60 240,90 Q 268,120 248,148 Q 225,175 190,168 Q 148,158 128,120 Q 115,92 140,68 Q 164,46 190,65 Q 210,80 207,100" fill="none" stroke="#8bbfd8" stroke-width="5" opacity="0.4"/>
+                                <path d="M 160,100 Q 200,72 220,97 Q 238,122 222,142 Q 204,162 178,155 Q 152,146 142,122 Q 136,100 155,82 Q 172,66 193,80 Q 206,92 204,100" fill="none" stroke="#38BDF8" stroke-width="3" opacity="0.55"/>
+                                <path d="M 160,100 Q 188,82 198,100 Q 207,118 194,132 Q 180,145 165,138 Q 150,130 148,114 Q 147,98 162,88 Q 176,80 187,92 Q 193,100 192,100" fill="none" stroke="#38BDF8" stroke-width="2" opacity="0.7"/>
+                                <!-- Eye wall -->
+                                <circle cx="160" cy="100" r="22" fill="none" stroke="#38BDF8" stroke-width="3" opacity="0.8"/>
+                                <!-- Eye (calm center) -->
+                                <circle cx="160" cy="100" r="16" fill="url(#eyeWall)"/>
+                                <circle cx="160" cy="100" r="8" fill="#161E2E" opacity="0.95"/>
+                                <!-- Wind speed annotation -->
+                                <text x="10" y="20" fill="#38BDF8" font-size="9" font-family="JetBrains Mono" opacity="0.7">VISTA SATELITAL</text>
+                                <text x="10" y="32" fill="#94A3B8" font-size="8" font-family="JetBrains Mono" opacity="0.6">Vientos &gt; 180 km/h</text>
+                                <!-- Scale bar -->
+                                <line x1="240" y1="185" x2="300" y2="185" stroke="#94A3B8" stroke-width="1.5" opacity="0.5"/>
+                                <text x="250" y="197" fill="#94A3B8" font-size="8" font-family="JetBrains Mono" opacity="0.5">200 km</text>
+                            </svg>
+                        </div>
+                        <div class="disaster-card-label">
+                            <span class="disaster-type-dot" style="background:#38BDF8"></span>
+                            <span class="disaster-type-name">Huracán</span>
+                            <span class="disaster-example">Atlántico, 2024</span>
+                        </div>
+                    </div>
+
+                </div><!-- /disaster-mosaic -->
+
+                <!-- Bottom: Stats + CTA -->
+                <div class="impact-footer-row animate-in delay-5">
+                    <div class="impact-stat-strip">
+                        <div class="impact-stat-item">
+                            <span class="impact-stat-num">387</span>
+                            <span class="impact-stat-desc">catástrofes registradas en 2024</span>
+                        </div>
+                        <div class="impact-stat-divider"></div>
+                        <div class="impact-stat-item">
+                            <span class="impact-stat-num">22+</span>
+                            <span class="impact-stat-desc">satélites de observación activos</span>
+                        </div>
+                        <div class="impact-stat-divider"></div>
+                        <div class="impact-stat-item">
+                            <span class="impact-stat-num">∞</span>
+                            <span class="impact-stat-desc">datos disponibles, inaccesibles</span>
+                        </div>
+                    </div>
+                    <a href="#slide-02" class="scroll-indicator-prompt animate-in delay-6">
+                        <span>¿Qué haría falta para que esos datos fueran comprensibles? ↓</span>
+                    </a>
+                </div>
+
+            </div>
+        </section>
+
+        <!-- ==================================================================
+             SLIDE 02: EL PROBLEMA - TENEMOS LOS DATOS, FALTA HACERLOS COMPRENSIBLES
+             ================================================================== -->
+        <section class="slide" id="slide-02">
+            <div class="slide-content-wrap">
+                <div class="slide-header">
+                    <span class="slide-badge">DIAPOSITIVA 02 · EL PROBLEMA</span>
+                    <h2 class="slide-title">
+                        Tenemos los datos. <span class="gradient-text">Nos falta hacerlos comprensibles.</span>
+                    </h2>
+                    <p class="slide-subtitle">
+                        Los satélites recopilan información extraordinaria sobre nuestro planeta diariamente. Sin embargo, interpretar estos productos científicos requiere conocimientos especializados y herramientas reservadas a expertos.
+                    </p>
+                </div>
+
+                <div class="challenge-grid">
+                    <!-- Pillar 1 -->
+                    <div class="challenge-card animate-in delay-1">
+                        <div>
+                            <div class="card-icon-box">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <circle cx="12" cy="12" r="3"></circle>
+                                    <path d="M3 12h1m8-9v1m8 8h1m-9 8v1M5.6 5.6l.7.7m12.1-.7-.7.7m0 12.1.7.7m-12.1-.7-.7.7"></path>
+                                </svg>
+                            </div>
+                            <div class="card-step-num">BARRERA 01</div>
+                            <h3 class="card-title">Datos Científicos Complejos</h3>
+                            <p class="card-text">
+                                Las mediciones interferométricas de fase, las matrices de polarización y los coeficientes de retrodispersión (dB) son incomprensibles sin formación técnica avanzada en física de radar.
+                            </p>
+                        </div>
+                    </div>
+
+                    <!-- Pillar 2 -->
+                    <div class="challenge-card animate-in delay-2">
+                        <div>
+                            <div class="card-icon-box">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <polygon points="12 2 2 7 12 12 22 7 12 2"></polygon>
+                                    <polyline points="2 17 12 22 22 17"></polyline>
+                                    <polyline points="2 12 12 17 22 12"></polyline>
+                                </svg>
+                            </div>
+                            <div class="card-step-num">BARRERA 02</div>
+                            <h3 class="card-title">Información Dispersa en Silos</h3>
+                            <p class="card-text">
+                                Los modelos de elevación (DEM), las imágenes multiespectrales, las capas de radar SAR y las infraestructuras residen en portales independientes con formatos y sistemas incompatibles.
+                            </p>
+                        </div>
+                    </div>
+
+                    <!-- Pillar 3 -->
+                    <div class="challenge-card animate-in delay-3">
+                        <div>
+                            <div class="card-icon-box">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                                    <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                                </svg>
+                            </div>
+                            <div class="card-step-num">BARRERA 03</div>
+                            <h3 class="card-title">Difícil Interpretación para el Público</h3>
+                            <p class="card-text">
+                                Los mapas planos 2D comprimen la realidad: ocultan las pendientes del relieve, la profundidad de las cuencas y la velocidad temporal del fenómeno, dificultando la toma de decisiones.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="challenge-bottom-quote animate-in delay-4">
+                    <span class="quote-icon">“</span>
+                    <span class="quote-text">
+                        «Disponemos de enormes cantidades de datos científicos sobre nuestro planeta, pero no somos capaces de interpretar visualmente qué significan ni cómo afectan al territorio.»
+                    </span>
+                </div>
+            </div>
+        </section>
+
+        <!-- ==================================================================
+             SLIDE 03: LA SOLUCIÓN - CONVERTIMOS DATOS SATELITALES EN TERRITORIOS EXPLORABLES
+             ================================================================== -->
+        <section class="slide" id="slide-03">
+            <div class="slide-content-wrap">
+                <div class="slide-header">
+                    <span class="slide-badge">DIAPOSITIVA 03 · LA SOLUCIÓN</span>
+                    <h2 class="slide-title">
+                        Convertimos datos satelitales en <span class="gradient-text">territorios que podemos explorar.</span>
+                    </h2>
+                    <p class="slide-subtitle">
+                        GeoWave es una plataforma web interactiva y colaborativa que transforma telemetría de observación terrestre en mapas tridimensionales, temporales y evolutivos comprensibles para todos.
+                    </p>
+                </div>
+
+                <div class="solution-layout">
+                    <!-- Feature Capabilities -->
+                    <div class="solution-features-grid">
+                        <div class="solution-feature-card animate-in delay-1">
+                            <div class="feature-icon-wrapper">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/></svg>
+                            </div>
+                            <div class="feature-info">
+                                <div class="feature-header-row">
+                                    <h4 class="feature-title">Geometría Real de Relieve 3D</h4>
+                                    <span class="feature-badge implemented">IMPLEMENTADO</span>
+                                </div>
+                                <p class="feature-desc">Reconstrucción tridimensional física del terreno mediante Modelos Digitales de Elevación (Copernicus DEM 30m / SRTM).</p>
+                            </div>
+                        </div>
+
+                        <div class="solution-feature-card animate-in delay-2">
+                            <div class="feature-icon-wrapper">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m12 2 10 10-10 10L2 12z"/><circle cx="12" cy="12" r="3"/></svg>
+                            </div>
+                            <div class="feature-info">
+                                <div class="feature-header-row">
+                                    <h4 class="feature-title">Detección de Cambios por Radar SAR</h4>
+                                    <span class="feature-badge implemented">IMPLEMENTADO</span>
+                                </div>
+                                <p class="feature-desc">Superposición de máscaras dinámicas de cambio (NISAR / Sentinel-1) desacopladas de la elevación física para ver inundaciones y deformaciones.</p>
+                            </div>
+                        </div>
+
+                        <div class="solution-feature-card animate-in delay-3">
+                            <div class="feature-icon-wrapper">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                            </div>
+                            <div class="feature-info">
+                                <div class="feature-header-row">
+                                    <h4 class="feature-title">Exploración Temporal Interactiva</h4>
+                                    <span class="feature-badge implemented">IMPLEMENTADO</span>
+                                </div>
+                                <p class="feature-desc">Línea de tiempo fluida con deslizador dinámico para comparar el antes, el durante y el después en un único modelo tridimensional.</p>
+                            </div>
+                        </div>
+
+                        <div class="solution-feature-card animate-in delay-4">
+                            <div class="feature-icon-wrapper">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+                            </div>
+                            <div class="feature-info">
+                                <div class="feature-header-row">
+                                    <h4 class="feature-title">Comunidad y Ciencia Ciudadana</h4>
+                                    <span class="feature-badge implemented">IMPLEMENTADO</span>
+                                </div>
+                                <p class="feature-desc">Estructura de red social abierta donde cada usuario publica, analiza, comenta y enriquece estudios geográficos compartidos.</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 3D Layer Stack Mockup -->
+                    <div class="solution-mockup-display animate-in delay-3">
+                        <div class="layer-stack-container">
+                            <!-- Top Layer: Changes & Inundation -->
+                            <div class="stack-layer layer-top">
+                                <div class="layer-title-tag">
+                                    <span class="pulse-dot"></span>
+                                    <span>CAPA 03: DETECCIÓN DE CAMBIOS Y AGUA (SAR)</span>
+                                </div>
+                                <svg viewBox="0 0 300 80" width="100%" height="80">
+                                    <path d="M 40,30 Q 120,60 180,35 T 260,50 L 250,70 Q 170,55 110,75 Z" fill="rgba(50, 213, 230, 0.5)" stroke="#32d5e6" stroke-width="2"/>
+                                </svg>
+                                <div class="layer-legend-row">
+                                    <span>Anomalías de retrodispersión y umbrales de reflectancia radar</span>
+                                </div>
+                            </div>
+
+                            <!-- Middle Layer: Co-registration & Optical -->
+                            <div class="stack-layer layer-middle">
+                                <div class="layer-title-tag">
+                                    <span class="pulse-dot" style="background:#318bff; box-shadow:0 0 8px #318bff;"></span>
+                                    <span>CAPA 02: ORTO-RECTIFICACIÓN GEOESPACIAL</span>
+                                </div>
+                                <svg viewBox="0 0 300 80" width="100%" height="80">
+                                    <rect x="20" y="20" width="260" height="40" fill="none" stroke="#318bff" stroke-width="1.5" stroke-dasharray="8,4"/>
+                                </svg>
+                                <div class="layer-legend-row">
+                                    <span>Alineación de coordenadas WGS84 UTM y calibración radiométrica</span>
+                                </div>
+                            </div>
+
+                            <!-- Base Layer: 3D DEM Relief -->
+                            <div class="stack-layer layer-base">
+                                <div class="layer-title-tag">
+                                    <span class="pulse-dot" style="background:#10b981; box-shadow:0 0 8px #10b981;"></span>
+                                    <span>CAPA 01: MODELO DIGITAL DE ELEVACIÓN (DEM)</span>
+                                </div>
+                                <svg viewBox="0 0 300 80" width="100%" height="80">
+                                    <path d="M 10,60 Q 80,10 150,45 T 290,20 L 290,75 L 10,75 Z" fill="rgba(16, 185, 129, 0.25)" stroke="#10b981" stroke-width="2"/>
+                                </svg>
+                                <div class="layer-legend-row">
+                                    <span>Morfología y pendientes del relieve real (Copernicus 30m)</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ==================================================================
+             SLIDE 04: FUNCIONAMIENTO - DEL PLANETA AL DETALLE DE UNA CATÁSTROFE
+             ================================================================== -->
+        <section class="slide" id="slide-04">
+            <div class="slide-content-wrap">
+                <div class="slide-header">
+                    <span class="slide-badge">DIAPOSITIVA 04 · FUNCIONAMIENTO</span>
+                    <h2 class="slide-title">
+                        Del planeta al detalle <span class="gradient-text">de una catástrofe.</span>
+                    </h2>
+                    <p class="slide-subtitle">
+                        Transformamos datos brutos científicos en experiencias visuales interactivas en cuatro sencillos pasos:
+                    </p>
+                </div>
+
+                <div class="pipeline-grid">
+                    <!-- Step 01 -->
+                    <div class="pipeline-step-card animate-in delay-1">
+                        <div>
+                            <div class="step-num-badge">01</div>
+                            <div class="step-header-tag">Selección Geográfica</div>
+                            <h3 class="step-card-title">Elige la Región en el Globo 3D</h3>
+                            <p class="step-card-desc">
+                                Explora la Tierra tridimensional y dibuja un recuadro de coordenadas delimitando el área exacta que deseas estudiar.
+                            </p>
+                        </div>
+                        <div class="pipeline-arrow">→</div>
+                    </div>
+
+                    <!-- Step 02 -->
+                    <div class="pipeline-step-card animate-in delay-2">
+                        <div>
+                            <div class="step-num-badge">02</div>
+                            <div class="step-header-tag">Selección Temporal</div>
+                            <h3 class="step-card-title">Delimita el Periodo Temporal</h3>
+                            <p class="step-card-desc">
+                                Indica las fechas de inicio y fin. La plataforma localiza automáticamente las pasadas satelitales disponibles en NASA y Copernicus.
+                            </p>
+                        </div>
+                        <div class="pipeline-arrow">→</div>
+                    </div>
+
+                    <!-- Step 03 -->
+                    <div class="pipeline-step-card animate-in delay-3">
+                        <div>
+                            <div class="step-num-badge">03</div>
+                            <div class="step-header-tag">Fusión Científica</div>
+                            <h3 class="step-card-title">Procesa los Datos Brutos</h3>
+                            <p class="step-card-desc">
+                                El motor fusiona el relieve DEM con la retrodispersión radar SAR (NISAR / Sentinel), calculando áreas afectadas y deformaciones.
+                            </p>
+                        </div>
+                        <div class="pipeline-arrow">→</div>
+                    </div>
+
+                    <!-- Step 04 -->
+                    <div class="pipeline-step-card animate-in delay-4">
+                        <div>
+                            <div class="step-num-badge">04</div>
+                            <div class="step-header-tag">Visualización 3D</div>
+                            <h3 class="step-card-title">Explora la Evolución Tridimensional</h3>
+                            <p class="step-card-desc">
+                                Navega el territorio en 3D con colores intuitivos: azul cian para inundaciones, rojo para fuego/lava y escala divergente para terremotos.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Scientific Rigor Callout Box -->
+                <div class="scientific-rigor-box animate-in delay-5">
+                    <div class="rigor-badge-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+                        </svg>
+                    </div>
+                    <div>
+                        <div class="rigor-title">Distinción Científica Clave: Relieve vs Detección de Cambios</div>
+                        <p class="rigor-desc">
+                            GeoWave separa rigurosamente la geometría del terreno (DEM) de los cambios detectados por radar. La elevación es la base tridimensional física, sobre la cual se proyectan las capas dinámicas de satélite.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ==================================================================
+             SLIDE 05: IMPACTO VISUAL - VALENCIA: ANTES, DURANTE Y DESPUÉS
+             ================================================================== -->
+        <section class="slide" id="slide-05">
+            <div class="slide-content-wrap case-study-wrapper">
+                <div class="slide-header" style="margin-bottom: 1.25rem;">
+                    <span class="slide-badge">DIAPOSITIVA 05 · IMPACTO VISUAL</span>
+                    <h2 class="slide-title" style="font-size: 2.25rem;">
+                        Valencia: <span class="gradient-text">antes, durante y después.</span>
+                    </h2>
+                </div>
+
+                <!-- Tabs Navigation -->
+                <div class="case-tabs-nav animate-in delay-1">
+                    <button class="case-tab-btn active" data-case="valencia">
+                        <span class="tab-btn-title">01. DANA de Valencia (España, 2024)</span>
+                        <span class="tab-btn-meta">Inundaciones</span>
+                    </button>
+                    <button class="case-tab-btn" data-case="lapalma">
+                        <span class="tab-btn-title">02. Volcán de La Palma (España, 2021)</span>
+                        <span class="tab-btn-meta">Transformación del Relieve</span>
+                    </button>
+                    <button class="case-tab-btn" data-case="turkiye">
+                        <span class="tab-btn-title">03. Terremotos de Turquía (2023)</span>
+                        <span class="tab-btn-meta">Deformación del Terreno</span>
+                    </button>
+                </div>
+
+                <!-- Active Case Viewer Container -->
+                <div class="case-viewer-container animate-in delay-2">
+                    <!-- Left: Interactive Before / After Split Viewer -->
+                    <div class="split-viewer-card">
+                        <div class="viewer-interactive-stage">
+                            <!-- Layer Before -->
+                            <div class="viewer-layer layer-before">
+                                <!-- Default SVG Valencia Before -->
+                                <svg viewBox="0 0 600 360" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">
+                                    <rect width="600" height="360" fill="#0c192e"/>
+                                    <path d="M 50,40 Q 180,90 280,60 T 520,110" fill="none" stroke="#223d68" stroke-width="2"/>
+                                    <path d="M 30,120 Q 160,180 310,140 T 560,190" fill="none" stroke="#223d68" stroke-width="2"/>
+                                    <path d="M 80,60 Q 220,150 290,210 T 490,280" fill="none" stroke="#318bff" stroke-width="3" opacity="0.6"/>
+                                    <path d="M 40,160 L 520,160" fill="none" stroke="#5e718d" stroke-width="2" stroke-dasharray="6,4"/>
+                                    <circle cx="320" cy="160" r="5" fill="#f4f7fc"/>
+                                    <text x="330" y="155" fill="#98a8bd" font-size="11" font-family="Space Grotesk">Paiporta / Sedaví</text>
+                                </svg>
+                            </div>
+
+                            <!-- Layer After (Clipped) -->
+                            <div class="viewer-layer layer-after">
+                                <!-- Default SVG Valencia After -->
+                                <svg viewBox="0 0 600 360" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">
+                                    <rect width="600" height="360" fill="#071324"/>
+                                    <path d="M 50,40 Q 180,90 280,60 T 520,110" fill="none" stroke="#1f365c" stroke-width="2"/>
+                                    <path d="M 120,80 Q 240,120 280,180 T 420,290 L 490,270 Q 360,200 310,130 T 160,70 Z" fill="rgba(50, 213, 230, 0.45)" stroke="#32d5e6" stroke-width="2.5"/>
+                                    <path d="M 140,110 Q 260,140 300,190 T 450,300 L 480,285 Q 350,210 290,140 T 170,90 Z" fill="rgba(245, 158, 11, 0.25)" stroke="#f59e0b" stroke-width="1.5" stroke-dasharray="4,2"/>
+                                    <path d="M 40,160 L 520,160" fill="none" stroke="#ff5d65" stroke-width="2.5" stroke-dasharray="6,4"/>
+                                    <circle cx="320" cy="160" r="7" fill="#ff5d65" stroke="#fff" stroke-width="2"/>
+                                </svg>
+                            </div>
+
+                            <!-- Divider Bar & Handle -->
+                            <div class="viewer-split-divider">
+                                <div class="divider-handle">
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/><polyline points="9 18 15 12 9 6"/></svg>
+                                </div>
+                            </div>
+
+                            <!-- Dynamic Floating Date Tags -->
+                            <div class="viewer-tag tag-before" id="split-label-before">Antes: Octubre 19, 2024 (Caudal Normal)</div>
+                            <div class="viewer-tag tag-after" id="split-label-after">Después: Octubre 31, 2024 (Pico Inundación)</div>
+                        </div>
+
+                        <!-- Legend Bar -->
+                        <div class="viewer-legend-bar" id="case-legend">
+                            <div class="legend-item"><span class="legend-color-dot" style="background:#32d5e6"></span><span>Lámina de Agua Inundada (Detección Radar SAR)</span></div>
+                            <div class="legend-item"><span class="legend-color-dot" style="background:#f59e0b"></span><span>Lodos y Suelos Saturados de Humedad</span></div>
+                            <div class="legend-item"><span class="legend-color-dot" style="background:#98a8bd"></span><span>Núcleos Urbanos y Vías de Comunicación</span></div>
+                        </div>
+                    </div>
+
+                    <!-- Right: Territorial Impact Metrics HUD -->
+                    <div class="case-metrics-panel">
+                        <div class="impact-stats-card">
+                            <div class="impact-card-title">
+                                <span class="pulse-dot"></span>
+                                <span id="case-title">Valencia: Antes, Durante y Después de la DANA</span>
+                            </div>
+
+                            <p id="case-summary" style="font-size: 0.85rem; color: var(--text-secondary); line-height: 1.5; margin-bottom: 1.25rem;">
+                                Comparación interactiva de la huella hídrica en Horta Sud y Ribera. Arrastra el divisor central para observar cómo el agua desbordó el barranco del Poyo, anegó municipios y cortó autopistas clave.
+                            </p>
+
+                            <div class="metrics-row">
+                                <div class="metric-big-box">
+                                    <div class="metric-number highlight-cyan" id="metric-affected-area">156.4 km²</div>
+                                    <div class="metric-desc">Superficie Inundada Detectada</div>
+                                </div>
+                                <div class="metric-big-box">
+                                    <div class="metric-number highlight-danger" id="metric-territory-pct">14.8%</div>
+                                    <div class="metric-desc">Cuenca Fluvial Afectada</div>
+                                </div>
+                            </div>
+
+                            <div class="infra-risk-box">
+                                <div class="infra-risk-title">Infraestructuras Próximas y Afectadas</div>
+                                <div class="infra-risk-text" id="case-infra-risk">Crítico: Autovías A-3, V-31, líneas de Cercanías y 12 cascos urbanos</div>
+                            </div>
+
+                            <div class="sensor-provenance-box">
+                                <div class="provenance-item">Fuentes Satelitales: <span id="case-sensors">Sentinel-1 C-SAR, Sentinel-2, Landsat y Copernicus DEM 30m</span></div>
+                                <div class="provenance-item" style="color: var(--warning);" id="case-nisar-note">Referencia histórica. Algoritmo 100% preparado para NISAR L/S-SAR tras su lanzamiento.</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ==================================================================
+             SLIDE 06: INNOVACIÓN SOCIAL - EL CONOCIMIENTO EVOLUCIONA DE FORMA COLECTIVA
+             ================================================================== -->
+        <section class="slide" id="slide-06">
+            <div class="slide-content-wrap">
+                <div class="slide-header">
+                    <span class="slide-badge">DIAPOSITIVA 06 · INNOVACIÓN SOCIAL</span>
+                    <h2 class="slide-title">
+                        El conocimiento también evoluciona <span class="gradient-text">de forma colectiva.</span>
+                    </h2>
+                    <p class="slide-subtitle">
+                        GeoWave integra una arquitectura similar a una red social científica: una comunidad donde cada catástrofe se convierte en una oportunidad para construir conocimiento compartido.
+                    </p>
+                </div>
+
+                <div class="community-layout">
+                    <!-- Feature Points -->
+                    <div class="community-features-list">
+                        <div class="community-feat-item animate-in delay-1">
+                            <div class="feat-icon-box">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+                            </div>
+                            <div class="feat-content">
+                                <h4>Biblioteca Pública de Estudios</h4>
+                                <p>Cada investigación cuenta con título, localización, fechas, visualización 3D interactiva y fuentes científicas abiertas.</p>
+                            </div>
+                        </div>
+
+                        <div class="community-feat-item animate-in delay-2">
+                            <div class="feat-icon-box">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+                            </div>
+                            <div class="feat-content">
+                                <h4>Interacción Social: Me Gusta y Popularidad</h4>
+                                <p>Sistema de valoración comunitaria, reputación científica verificada y rankings de estudios más consultados y contrastados.</p>
+                            </div>
+                        </div>
+
+                        <div class="community-feat-item animate-in delay-3">
+                            <div class="feat-icon-box">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="6" y1="3" x2="6" y2="15"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M18 9a9 9 0 0 1-9 9"/></svg>
+                            </div>
+                            <div class="feat-content">
+                                <h4>Comentarios, Aportaciones y Forking</h4>
+                                <p>Investigadores, estudiantes y ciudadanos pueden comentar, proponer correcciones o bifurcar el estudio para añadir nuevas perspectivas y capas SIG.</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Interactive Community Explorer Card -->
+                    <div class="community-explorer-card animate-in delay-2">
+                        <div class="explorer-header-row">
+                            <div class="explorer-title">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                                <span>Feed Social de Estudios Geográficos</span>
+                            </div>
+
+                            <!-- Dual-Audience Mode Switcher -->
+                            <div class="mode-toggle-wrap">
+                                <button class="mode-btn active" id="mode-simple-btn">Modo Ciudadano</button>
+                                <button class="mode-btn" id="mode-scientific-btn">Modo Científico (SAR)</button>
+                            </div>
+                        </div>
+
+                        <div class="studies-feed simple-mode">
+                            <!-- Study Item 1 -->
+                            <div class="study-item-card">
+                                <div class="study-title-line">
+                                    <span class="study-name">Valencia Horta Sud: Cuellos de Botella en Cauces y Autovías</span>
+                                    <span class="verified-badge">✓ Verificado</span>
+                                </div>
+                                <div class="study-author-line">Por Dr. E. Gómez (UPV GeoLab) · Verificado</div>
+                                <div class="study-footer-line">
+                                    <div class="study-tags">
+                                        <span class="tag-pill">DANA 2024</span>
+                                        <span class="tag-pill">Sentinel-1</span>
+                                        <span class="tag-pill scientific-meta-tag" style="display:none; color:var(--secondary)">σ° retrodispersión</span>
+                                    </div>
+                                    <div class="study-social-actions">
+                                        <button class="action-counter-btn like-action" title="Votar por este estudio">
+                                            <span>♥</span>
+                                            <span class="like-count">342</span>
+                                        </button>
+                                        <span class="action-counter-btn">💬 48</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Study Item 2 -->
+                            <div class="study-item-card">
+                                <div class="study-title-line">
+                                    <span class="study-name">La Palma: Disipación Térmica de Lava y Delta Marino</span>
+                                    <span class="verified-badge">✓ Verificado</span>
+                                </div>
+                                <div class="study-author-line">Por Instituto GeoVolcanics · Verificado</div>
+                                <div class="study-footer-line">
+                                    <div class="study-tags">
+                                        <span class="tag-pill">Cumbre Vieja</span>
+                                        <span class="tag-pill">LiDAR</span>
+                                        <span class="tag-pill scientific-meta-tag" style="display:none; color:var(--secondary)">+48ha Fajana</span>
+                                    </div>
+                                    <div class="study-social-actions">
+                                        <button class="action-counter-btn like-action" title="Votar por este estudio">
+                                            <span>♥</span>
+                                            <span class="like-count">219</span>
+                                        </button>
+                                        <span class="action-counter-btn">💬 31</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Study Item 3 -->
+                            <div class="study-item-card">
+                                <div class="study-title-line">
+                                    <span class="study-name">Falla de Anatolia Oriental: Desplazamiento Sísmico InSAR</span>
+                                    <span class="verified-badge">✓ Verificado</span>
+                                </div>
+                                <div class="study-author-line">Por S. Kalkan et al. (Red Sísmica Internacional)</div>
+                                <div class="study-footer-line">
+                                    <div class="study-tags">
+                                        <span class="tag-pill">Turquía 2023</span>
+                                        <span class="tag-pill">InSAR</span>
+                                        <span class="tag-pill scientific-meta-tag" style="display:none; color:var(--secondary)">5.5m Ruptura</span>
+                                    </div>
+                                    <div class="study-social-actions">
+                                        <button class="action-counter-btn like-action" title="Votar por este estudio">
+                                            <span>♥</span>
+                                            <span class="like-count">495</span>
+                                        </button>
+                                        <span class="action-counter-btn">💬 64</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ==================================================================
+             SLIDE 07: PREDICCIÓN Y VISIÓN DE FUTURO - PREPARARSE PARA LO QUE VENGA
+             ================================================================== -->
+        <section class="slide" id="slide-07">
+            <div class="slide-content-wrap vision-layout">
+                <div class="slide-header" style="margin-bottom: 1.5rem;">
+                    <span class="slide-badge">DIAPOSITIVA 07 · PREDICCIÓN Y VISIÓN DE FUTURO</span>
+                    <h2 class="slide-title">
+                        No se trata solo de comprender lo que pasó. <span class="gradient-text">Se trata de predecir y estar mejor preparados.</span>
+                    </h2>
+                </div>
+
+                <!-- Strategic Predictive Pillars -->
+                <div class="vision-pillars-grid">
+                    <div class="vision-card animate-in delay-1">
+                        <h4 class="vision-card-title">Predicción y Análisis de Patrones</h4>
+                        <p class="vision-card-text">
+                            GeoWave compara catástrofes históricas con condiciones actuales para identificar patrones territoriales repetitivos y anticipar qué zonas sufrirán mayor impacto ante futuros eventos.
+                        </p>
+                    </div>
+
+                    <div class="vision-card animate-in delay-2">
+                        <h4 class="vision-card-title">Mapas de Vulnerabilidad Predictiva</h4>
+                        <p class="vision-card-text">
+                            Fusión de datos satelitales con demografía, vías de evacuación y usos del suelo para responder no solo "dónde se inundó", sino "qué personas e infraestructuras están en riesgo inminente".
+                        </p>
+                    </div>
+
+                    <div class="vision-card animate-in delay-3">
+                        <h4 class="vision-card-title">Simulación de Escenarios Hipotéticos</h4>
+                        <p class="vision-card-text">
+                            Modelos predictivos que permiten a los servicios de emergencias ensayar escenarios preventivos y diseñar planes de contingencia basados en evidencias científicas.
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Main Action Banner Card -->
+                <div class="action-banner-card animate-in delay-4">
+                    <div class="action-banner-text">
+                        <h3 class="action-banner-motto">
+                            Transformar datos en conocimiento.<br>
+                            <span class="gradient-text">Transformar conocimiento en prevención.</span>
+                        </h3>
+                        <p class="action-banner-sub">
+                            «El planeta está cambiando constantemente. Los satélites lo están observando. Nosotros queremos que todos podamos comprenderlo.»
+                        </p>
+                    </div>
+
+                    <div class="action-banner-buttons">
+                        <!-- Primary Live Demo CTA Button -->
+                        <a href="#" class="primary-cta-button bind-demo-url" id="open-demo-btn">
+                            <span>ABRIR GEOWAVE →</span>
+                        </a>
+
+                        <!-- Secondary GitHub Repo Button -->
+                        <a href="#" class="secondary-cta-button bind-repo-url" id="github-repo-btn">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"/></svg>
+                            <span>Código Fuente</span>
+                        </a>
+                    </div>
+                </div>
+
+                <!-- AI Use Disclosure Footer (NASA Compliance) -->
+                <div class="ai-disclosure-footer animate-in delay-5">
+                    <div class="ai-disclosure-tag">DECLARACIÓN DE USO DE IA</div>
+                    <div class="ai-disclosure-text">
+                        El equipo de GeoWave utilizó herramientas de asistencia mediante IA durante el diseño preliminar, prototipado del pipeline y síntesis de contenido. Todas las metodologías geoespaciales, atribución de datos satelitales, validaciones interferométricas SAR y afirmaciones científicas han sido rigurosamente revisadas, cotejadas y verificadas por integrantes humanos del equipo con la literatura de NASA Earthdata y ESA Copernicus.
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- ======================================================================
+         BOTTOM HUD NAVIGATION BAR
+         ====================================================================== -->
+    <footer class="bottom-nav">
+        <!-- Global Progress Bar -->
+        <div class="progress-container">
+            <div class="progress-bar" id="progress-bar"></div>
+        </div>
+
+        <!-- Slide Number Counter -->
+        <div class="counter-box">
+            <span class="current-slide" id="current-slide-num">01</span>
+            <span class="separator">/</span>
+            <span class="total-slides" id="total-slides-num">07</span>
+        </div>
+
+        <!-- Dots Navigation -->
+        <nav class="dots-nav" id="dots-nav" aria-label="Indicador de diapositiva"></nav>
+
+        <!-- Previous / Next Controls -->
+        <div class="nav-controls">
+            <button class="nav-arrow-btn" id="prev-btn" title="Diapositiva Anterior (↑ o RePág)" aria-label="Diapositiva Anterior">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="15 18 9 12 15 6"></polyline>
+                </svg>
+                <span>Anterior</span>
+            </button>
+
+            <button class="nav-arrow-btn" id="next-btn" title="Siguiente Diapositiva (↓ o AvPág)" aria-label="Siguiente Diapositiva">
+                <span>Siguiente</span>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="9 18 15 12 9 6"></polyline>
+                </svg>
+            </button>
+        </div>
+    </footer>
+
+    <!-- ======================================================================
+         KEYBOARD SHORTCUTS MODAL
+         ====================================================================== -->
+    <div class="modal-overlay" id="shortcuts-modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+        <div class="modal-card">
+            <div class="modal-header">
+                <h3 class="modal-title" id="modal-title">Controles y Atajos de Teclado</h3>
+                <button class="icon-btn" id="close-modal-btn" aria-label="Cerrar modal">✕</button>
+            </div>
+
+            <div class="shortcut-grid">
+                <div class="shortcut-item">
+                    <span class="shortcut-label">Siguiente Diapositiva</span>
+                    <span class="shortcut-key">↓ / AvPág</span>
+                </div>
+                <div class="shortcut-item">
+                    <span class="shortcut-label">Diapositiva Anterior</span>
+                    <span class="shortcut-key">↑ / RePág</span>
+                </div>
+                <div class="shortcut-item">
+                    <span class="shortcut-label">Primera / Última Diapositiva</span>
+                    <span class="shortcut-key">Inicio / Fin</span>
+                </div>
+                <div class="shortcut-item">
+                    <span class="shortcut-label">Saltar a Diapositiva</span>
+                    <span class="shortcut-key">Teclas 1 – 7</span>
+                </div>
+                <div class="shortcut-item">
+                    <span class="shortcut-label">Exportar / Imprimir PDF</span>
+                    <span class="shortcut-key">P</span>
+                </div>
+                <div class="shortcut-item">
+                    <span class="shortcut-label">Pantalla Completa</span>
+                    <span class="shortcut-key">F</span>
+                </div>
+            </div>
+
+            <p style="font-size: 0.8rem; color: var(--text-muted); text-align: center;">
+                Dispositivos táctiles: Deslizar a la izquierda para avanzar, a la derecha para retroceder. Tecla L para alternar idioma.
+            </p>
+        </div>
+    </div>
+
+    <!-- Main Module Script -->
+    <script type="module" src="js/main.js"></script>
+</body>
+</html>

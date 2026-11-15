@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 450" width="100%" height="100%">
+    <!-- Mockup of the CesiumJS 3D Globe with UI HUD — updated palette -->
+    <rect width="800" height="450" fill="#0D131F"/>
+    <!-- Top HUD -->
+    <rect x="0" y="0" width="800" height="44" fill="#161E2E" stroke="#2DD4BF" stroke-width="1"/>
+    <text x="24" y="28" fill="#f4f7fc" font-family="Space Grotesk" font-weight="bold" font-size="16">GeoWave 3D Engine · CesiumJS</text>
+    <rect x="668" y="10" width="108" height="24" rx="4" fill="#2DD4BF"/>
+    <text x="680" y="26" fill="#0D131F" font-family="Space Grotesk" font-size="11" font-weight="bold">+ NEW STUDY</text>
+
+    <!-- 3D Globe -->
+    <circle cx="400" cy="245" r="160" fill="#112240" stroke="#2DD4BF" stroke-width="2"/>
+    <ellipse cx="400" cy="245" rx="150" ry="70" fill="none" stroke="#1E3A5F" stroke-width="1"/>
+    <ellipse cx="400" cy="245" rx="70" ry="150" fill="none" stroke="#1E3A5F" stroke-width="1"/>
+    <!-- Terrain highlight patches -->
+    <ellipse cx="390" cy="230" rx="45" ry="28" fill="rgba(45,212,191,0.12)" stroke="none"/>
+    <ellipse cx="420" cy="265" rx="30" ry="18" fill="rgba(224,109,83,0.18)" stroke="none"/>
+
+    <!-- Bounding Box -->
+    <rect x="360" y="210" width="70" height="55" fill="rgba(45,212,191,0.18)" stroke="#2DD4BF" stroke-width="2" stroke-dasharray="4,2"/>
+    <text x="362" y="200" fill="#2DD4BF" font-family="JetBrains Mono" font-size="10">BBOX: [39.4°N, 0.3°W]</text>
+
+    <!-- Side Panel -->
+    <rect x="24" y="64" width="220" height="300" rx="8" fill="rgba(22,30,46,0.92)" stroke="#1E3A5F" stroke-width="1"/>
+    <text x="40" y="96" fill="#f4f7fc" font-family="Space Grotesk" font-weight="bold" font-size="13">Active Layer Config</text>
+    <rect x="40" y="110" width="188" height="32" rx="4" fill="#112240" stroke="#2DD4BF"/>
+    <text x="50" y="130" fill="#2DD4BF" font-family="Space Grotesk" font-size="11">✓ Copernicus DEM 30m</text>
+    <rect x="40" y="150" width="188" height="32" rx="4" fill="#112240" stroke="#38BDF8"/>
+    <text x="50" y="170" fill="#38BDF8" font-family="Space Grotesk" font-size="11">✓ Sentinel-1 Backscatter Δ</text>
+    <rect x="40" y="190" width="188" height="32" rx="4" fill="#112240" stroke="#F59E0B"/>
+    <text x="50" y="210" fill="#F59E0B" font-family="Space Grotesk" font-size="11">✓ Water Mask Threshold</text>
+    <rect x="40" y="230" width="188" height="32" rx="4" fill="#112240" stroke="#E06D53"/>
+    <text x="50" y="250" fill="#E06D53" font-family="Space Grotesk" font-size="11">✓ DANA Flood Layer</text>
+
+    <!-- Timeline Bar -->
+    <rect x="264" y="380" width="512" height="44" rx="6" fill="rgba(22,30,46,0.95)" stroke="#1E3A5F"/>
+    <line x1="290" y1="402" x2="740" y2="402" stroke="#2D3B52" stroke-width="3"/>
+    <circle cx="340" cy="402" r="6" fill="#2DD4BF"/>
+    <text x="315" y="420" fill="#94A3B8" font-family="JetBrains Mono" font-size="9">19 OCT</text>
+    <circle cx="560" cy="402" r="8" fill="#E06D53" stroke="#fff" stroke-width="2"/>
+    <text x="535" y="420" fill="#E06D53" font-family="JetBrains Mono" font-weight="bold" font-size="9">31 OCT (PEAK)</text>
+    <circle cx="700" cy="402" r="6" fill="#2DD4BF"/>
+    <text x="685" y="420" fill="#94A3B8" font-family="JetBrains Mono" font-size="9">05 NOV</text>
+</svg>
